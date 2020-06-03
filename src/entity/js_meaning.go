@@ -3,7 +3,6 @@ package entity
 import (
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"com.newcontinent-team.jscraft/tokenize"
@@ -76,6 +75,7 @@ func (meaning *JSMeaning) Init(content string, context *CompileContext) error {
 			}
 		}
 		meaning.Stream.AddTokenByContent(curTokenRunes, curType)
+
 		//fmt.Println("length:sdf:" + strconv.Itoa(meaning.Stream.Length()))
 		//meaning.Stream.ResetToBegin()
 		return nil
@@ -119,6 +119,12 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 		meaning.continueReadVariable(&tmpToken)
 		return &tmpToken
 
+	} else if lower == "jscraft" {
+
+		tmpToken := tokenize.BaseToken{Type: js.TokenJSCraft}
+		meaning.continueReadCraft(&tmpToken)
+		return &tmpToken
+
 	} else if lower == "{" {
 
 		tmpToken := tokenize.BaseToken{Content: "{", Type: js.TokenJSBlock}
@@ -126,21 +132,25 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 		return &tmpToken
 
 	} else if lower == "'" {
+
 		tmpToken := tokenize.BaseToken{Content: "'", Type: js.TokenJSString}
 		meaning.continueReadString(&tmpToken)
 		return &tmpToken
 
 	} else if lower == "\"" {
+
 		tmpToken := tokenize.BaseToken{Content: "\"", Type: js.TokenJSString}
 		meaning.continueReadString(&tmpToken)
 		return &tmpToken
 
 	} else if lower == "(" {
+
 		tmpToken := tokenize.BaseToken{Content: "(", Type: js.TokenJSBracket}
 		meaning.continueReadBracket(&tmpToken)
 		return &tmpToken
 
 	} else if lower == "[" {
+
 		tmpToken := tokenize.BaseToken{Content: "[", Type: js.TokenJSBracketSquare}
 		meaning.continueReadBracketSquare(&tmpToken)
 		return &tmpToken
@@ -156,18 +166,15 @@ func (meaning *JSMeaning) continueReadFunction(currToken *tokenize.BaseToken) {
 			break
 		}
 
-		tmpToken := meaning.Stream.ReadToken()
+		tmpToken := meaning.GetNextMeaningToken()
 		tmpContent := tmpToken.GetContent()
 
-		if tmpContent == "(" {
-			fmt.Println("function param")
-			bracketToken := tokenize.BaseToken{Content: "(", Type: js.TokenJSBracket}
-
-			meaning.continueReadBracket(&bracketToken)
+		if tmpToken.Type == js.TokenJSBracket {
+			//fmt.Println("function param")
 
 			paramToken := tokenize.BaseToken{Type: js.TokenJSFunctionParam}
 
-			tmpStream := bracketToken.Children
+			tmpStream := tmpToken.Children
 
 			for {
 				if tmpStream.EOS() {
@@ -176,24 +183,24 @@ func (meaning *JSMeaning) continueReadFunction(currToken *tokenize.BaseToken) {
 
 				varToken := tmpStream.ReadToken()
 
-				if varToken.GetType() == js.TokenJSVariable {
+				if varToken.Type == js.TokenJSVariable {
+					paramToken.Children.AddToken(*varToken)
+				} else if varToken.Type == js.TokenJSWord {
 					paramToken.Children.AddToken(*varToken)
 				}
 			}
 
 			currToken.Children.AddToken(paramToken)
 
-		} else if tmpContent == "{" {
-			fmt.Println("function block")
-			tokenBlock := tokenize.BaseToken{}
-			meaning.continueReadBlock(&tokenBlock)
-			currToken.Children.AddToken(tokenBlock)
+		} else if tmpToken.Type == js.TokenJSBlock {
+
+			currToken.Children.AddToken(*tmpToken)
 			break
 
 		} else if len(tmpContent) > 0 {
 			name := strings.Trim(tmpContent, " \n\r")
 			if len(name) > 0 {
-				fmt.Println("function name" + name + ":" + strconv.Itoa(len(name)))
+				//fmt.Println("function name" + name + ":" + strconv.Itoa(len(name)))
 				currToken.Content = name
 			}
 		}
@@ -202,6 +209,7 @@ func (meaning *JSMeaning) continueReadFunction(currToken *tokenize.BaseToken) {
 
 func (meaning *JSMeaning) continueReadBracket(currToken *tokenize.BaseToken) {
 
+	//fmt.Println("begin block")
 	for {
 		if meaning.Stream.EOS() {
 			break
@@ -216,6 +224,8 @@ func (meaning *JSMeaning) continueReadBracket(currToken *tokenize.BaseToken) {
 			currToken.Children.AddToken(*tmpToken)
 		}
 	}
+	//fmt.Println("end block")
+
 }
 
 func (meaning *JSMeaning) continueReadBracketSquare(currToken *tokenize.BaseToken) {
@@ -256,6 +266,8 @@ func (meaning *JSMeaning) continueReadBlock(currToken *tokenize.BaseToken) {
 
 func (meaning *JSMeaning) continueReadString(currToken *tokenize.BaseToken) {
 
+	//fmt.Println("begin string")
+
 	var specialCharacter bool = false
 	curContent := currToken.GetContent()
 	for {
@@ -266,20 +278,25 @@ func (meaning *JSMeaning) continueReadString(currToken *tokenize.BaseToken) {
 		tmpContent := tmpToken.GetContent()
 
 		if tmpContent == "\\" {
+
 			specialCharacter = !specialCharacter
 			currToken.Children.AddToken(*tmpToken)
+
 		} else if tmpContent == curContent {
+
 			if specialCharacter {
 				specialCharacter = false
 				currToken.Children.AddToken(*tmpToken)
 			} else {
 				break
 			}
+
 		} else {
 			specialCharacter = false
 			currToken.Children.AddToken(*tmpToken)
 		}
 	}
+	//fmt.Println("end string")
 }
 
 func (meaning *JSMeaning) continueReadForLoop(currToken *tokenize.BaseToken) {
@@ -292,7 +309,7 @@ func (meaning *JSMeaning) continueReadForLoop(currToken *tokenize.BaseToken) {
 
 		currToken.Children.AddToken(*tmpToken)
 
-		if tmpToken.GetType() == js.TokenJSBlock {
+		if tmpToken.Type == js.TokenJSBlock {
 			break
 		}
 	}
@@ -305,10 +322,9 @@ func (meaning *JSMeaning) continueReadIf(currToken *tokenize.BaseToken) {
 			break
 		}
 		tmpToken := meaning.GetNextMeaningToken()
+		currToken.Children.AddToken(*tmpToken)
 
-		tmpContent := tmpToken.GetContent()
-
-		if tmpToken.GetType() == js.TokenJSBlock || tmpContent == ";" {
+		if tmpToken.Type == js.TokenJSBlock || tmpToken.Content == ";" {
 			break
 		}
 	}
@@ -321,12 +337,57 @@ func (meaning *JSMeaning) continueReadVariable(currToken *tokenize.BaseToken) {
 		}
 		tmpToken := meaning.GetNextMeaningToken()
 
+		currToken.Children.AddToken(*tmpToken)
 		tmpContent := tmpToken.GetContent()
-		if tmpContent == "\n" || tmpContent == ";" {
+		if tmpContent == "\n" {
+			tmpToken.Content = ";"
 			break
-		} else {
-			currToken.Children.AddToken(*tmpToken)
+		} else if tmpContent == ";" {
+			break
 		}
-
 	}
+}
+
+func (meaning *JSMeaning) continueReadCraft(currToken *tokenize.BaseToken) {
+	//fmt.Println("begin craft")
+	for {
+		if meaning.Stream.EOS() {
+			break
+		}
+		tmpToken := meaning.GetNextMeaningToken()
+
+		tmpContent := tmpToken.Content
+		//fmt.Println("content:" + tmpContent)
+
+		if tmpContent == "require" {
+
+			currToken.Content = "require"
+
+		} else if tmpContent == "conflict" {
+
+			currToken.Content = "conflict"
+
+		} else if tmpContent == "fetch" {
+
+			currToken.Content = "fetch"
+
+		} else if tmpContent == "(" {
+
+			if tmpToken.Type == js.TokenJSBracket {
+				currToken.Children.AddToken(*tmpToken)
+			} else {
+				tokenBracket := tokenize.BaseToken{Content: "(", Type: js.TokenJSBracket}
+				meaning.continueReadBracket(&tokenBracket)
+			}
+			break
+		} else if tmpContent == "\n" || tmpContent == ";" || tmpContent == "\r" {
+			break
+		} else if tmpContent == "." {
+			continue
+		} else {
+			//syntax error
+			//fmt.Println("unexpected:" + tmpContent)
+		}
+	}
+	//fmt.Println("end craft")
 }

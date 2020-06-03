@@ -54,7 +54,6 @@ func (stream *BaseTokenStream) Debug(level int) {
 			}
 
 		}
-
 		token.Children.Debug(level + 1)
 	}
 }
@@ -85,4 +84,63 @@ func (stream *BaseTokenStream) EOS() bool {
 //Length get len of stream
 func (stream *BaseTokenStream) Length() int {
 	return len(stream.Tokens)
+}
+
+//ConcatStringContent concat content of tokens
+func (stream *BaseTokenStream) ConcatStringContent() string {
+	stream.ResetToBegin()
+	content := ""
+	for {
+		if stream.EOS() {
+			break
+		}
+		token := stream.ReadToken()
+		content += string(token.Content)
+	}
+	return content
+}
+
+//ToArray get array of tokens
+func (stream *BaseTokenStream) ToArray() []BaseToken {
+	var rs []BaseToken
+	stream.ResetToBegin()
+	for {
+		if stream.EOS() {
+			break
+		}
+		token := stream.ReadToken()
+		rs = append(rs, *token)
+	}
+	return rs
+}
+
+//ReadFirstTokenType read first token of type
+func (stream *BaseTokenStream) ReadFirstTokenType(tokenType int) *BaseToken {
+	stream.ResetToBegin()
+	for {
+		if stream.EOS() {
+			break
+		}
+		token := stream.ReadToken()
+		if token.Type == tokenType {
+			return token
+		}
+
+	}
+	return nil
+}
+
+//ReadNextTokenType read from current position to next match of token type
+func (stream *BaseTokenStream) ReadNextTokenType(tokenType int) *BaseToken {
+
+	for {
+		if stream.EOS() {
+			break
+		}
+		token := stream.ReadToken()
+		if token.Type == tokenType {
+			return token
+		}
+	}
+	return nil
 }

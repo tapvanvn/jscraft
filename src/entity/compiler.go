@@ -2,10 +2,12 @@ package entity
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 //Compiler compier
@@ -24,19 +26,19 @@ func (compiler *Compiler) Init(target string, from string, context *CompileConte
 
 //CompileTarget parse target
 func (compiler *Compiler) CompileTarget() error {
-	var meaning URIMeaning
-	err := meaning.Init(compiler.Target)
+
+	path, err := compiler.Context.GetPathForURI(compiler.Target)
 	if err != nil {
 		return err
 	}
-	compiler.Target = compiler.Context.GetPathForNamespace(meaning.Namespace) + "/" + meaning.RelativePath
+	compiler.Target = path
 
 	//fmt.Println("target:" + compiler.Target)
-	err = meaning.Init(compiler.From)
+	path, err = compiler.Context.GetPathForURI(compiler.From)
 	if err != nil {
 		return err
 	}
-	compiler.From = compiler.Context.GetPathForNamespace(meaning.Namespace) + "/" + meaning.RelativePath
+	compiler.From = path
 	//fmt.Println("from:" + compiler.From)
 
 	stat, err := os.Stat(compiler.From)
@@ -52,18 +54,28 @@ func (compiler *Compiler) CompileTarget() error {
 
 	switch strings.ToLower(ext) {
 	case ".js":
-		//fmt.Println("compile js")
-		_ = compiler.Context.RequireJSFile(compiler.From)
-		/*var jsmeaning JSMeaning
-		jsmeaning.Init(string(data), compiler.Context)
+
+		jsScopeFile := compiler.Context.RequireJSFile(compiler.From)
 		for {
-			token := jsmeaning.GetNextMeaningToken()
-			if token == nil {
+			if compiler.Context.IsReadyFor(jsScopeFile) {
+				//todo: compile
+				fmt.Println("compiled")
+				var builder JSBuilder
+				var buildOptions JSBuildOptions
+				builder.Init(jsScopeFile, compiler.Context, buildOptions)
+				if builder.Error == nil {
+					err = ioutil.WriteFile(compiler.Target, []byte(builder.GetContent()), 0644)
+					if err != nil {
+						return err
+					}
+				} else {
+					fmt.Println("some error:" + builder.Error.Error())
+				}
 				break
 			}
-			fmt.Println(token.Content)
-			//jsStream.AddToken(token)
-		}*/
+			time.Sleep(time.Millisecond * 200)
+		}
+
 	default:
 		data, err := ioutil.ReadFile(compiler.From)
 		if err != nil {

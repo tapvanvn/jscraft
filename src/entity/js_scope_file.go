@@ -12,6 +12,10 @@ type JSScopeFile struct {
 	Stream   tokenize.BaseTokenStream
 }
 
+func (scope *JSScopeFile) Init() {
+	scope.Requires = make(map[string]*JSScopeFile, 0)
+}
+
 func (scope *JSScopeFile) GetType() int {
 	return JSScopeTypeFile
 }

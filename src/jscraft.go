@@ -8,11 +8,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"runtime"
 
 	"com.newcontinent-team.jscraft/entity"
+	"com.newcontinent-team.jscraft/tokenize/js"
 )
 
 var (
@@ -83,6 +83,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	compileContext.Init()
 	compileContext.LayoutDir = layoutDir
 	compileContext.WorkDir = workDir
 	compileContext.TemplateDir = templateDir
@@ -117,16 +118,16 @@ func main() {
 	}
 
 	for {
-		if _, ok := <-done; ok {
-			numStep--
+		if value, ok := <-done; ok {
+			numStep += value
 			//fmt.Println("remainStep:" + strconv.Itoa(numStep))
 			if numStep == 0 {
 				break
 			}
-		} else if numStep == 0 {
+		} else if numStep <= 0 {
 			break
 		}
-		time.Sleep(5 * time.Second)
+
 	}
 }
 
@@ -138,12 +139,17 @@ func processRequire() {
 		}
 		select {
 		case jsScopeFile := <-requireProvider:
-			numStep++
+
+			fmt.Println("process require:" + jsScopeFile.FilePath)
+
+			go addBegin()
+
 			ext := filepath.Ext(jsScopeFile.FilePath)
 			data, err := ioutil.ReadFile(jsScopeFile.FilePath)
 
 			if err != nil {
 				hasError = true
+				fmt.Println(err.Error())
 				return
 			}
 
@@ -157,15 +163,57 @@ func processRequire() {
 			jsmeaning.Init(string(data), &compileContext)
 
 			fmt.Println("--------")
+
 			for {
 				token := jsmeaning.GetNextMeaningToken()
 				if token == nil {
 					break
 				}
-				jsScopeFile.Stream.AddToken(*token)
 
+				if token.Type == js.TokenJSCraft {
+					if token.Content == "require" {
+						blockToken := token.Children.ReadToken()
+						if blockToken.Type == js.TokenJSBracket {
+							stringToken := blockToken.Children.ReadToken()
+							if stringToken.Type == js.TokenJSString {
+								requireURI := stringToken.Children.ConcatStringContent()
+								fmt.Println("require:" + requireURI)
+								var uriMeaning entity.URIMeaning
+								err := uriMeaning.Init(requireURI)
+								if err != nil {
+									//todo: process err
+								}
+								requirePath := compileContext.GetPathForNamespace(uriMeaning.Namespace) + "/" + uriMeaning.RelativePath
+								jsScopeFile.Requires[requirePath] = compileContext.RequireJSFile(requirePath)
+							}
+						}
+					} else if token.Content == "fetch" {
+
+					}
+				} else if token.Type == js.TokenJSFunction {
+					funcName := token.Content
+					fmt.Println("func:" + funcName)
+					if len(funcName) > 8 && string(funcName[0:8]) == "jscraft_" {
+						patchName := string(funcName[8:])
+
+						funcTokens := token.Children.ToArray()
+						fmt.Println("patch:%d", len(funcTokens))
+						for _, funcToken := range funcTokens {
+							fmt.Println("type:", funcToken.Type)
+							if funcToken.Type == js.TokenJSBlock {
+
+								compileContext.AddPatch(patchName, funcToken.Children)
+								break
+							}
+						}
+					}
+				}
+
+				jsScopeFile.Stream.AddToken(*token)
 			}
-			jsScopeFile.Stream.Debug(0)
+
+			//jsScopeFile.Stream.Debug(0)
+			jsScopeFile.IsLoaded = true
 			fmt.Println("--------")
 			go addDone()
 		}
@@ -176,13 +224,16 @@ func addStep(step entity.BuildStep) {
 	steps <- step
 }
 
-func addDone() {
+func addBegin() {
 	done <- 1
+}
+func addDone() {
+	done <- -1
 }
 
 func work() {
 	//var id = workID
-	workID++
+	//workID++
 	var compiler entity.Compiler
 
 	for {
