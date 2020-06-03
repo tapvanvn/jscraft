@@ -2,7 +2,6 @@ package entity
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"com.newcontinent-team.jscraft/tokenize"
@@ -88,7 +87,6 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 	var token *tokenize.BaseToken = nil
 	//fmt.Println("length:" + strconv.Itoa(meaning.Stream.Length()))
 	if meaning.Stream.EOS() {
-		fmt.Println("end of stream")
 		return nil
 	}
 

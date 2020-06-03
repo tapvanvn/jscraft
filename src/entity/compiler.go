@@ -89,7 +89,7 @@ func (compiler *Compiler) CompileTarget() error {
 			}
 		} else {
 			//copy directory
-			cmd := exec.Command("cp", "-r", compiler.From, compiler.Target)
+			cmd := exec.Command("cp", "-Rf", compiler.From, compiler.Target)
 			err := cmd.Run()
 			if err != nil {
 				return err

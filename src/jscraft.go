@@ -140,9 +140,9 @@ func processRequire() {
 		select {
 		case jsScopeFile := <-requireProvider:
 
-			fmt.Println("process require:" + jsScopeFile.FilePath)
+			//fmt.Println("process require:" + jsScopeFile.FilePath)
 
-			go addBegin()
+			addBegin()
 
 			ext := filepath.Ext(jsScopeFile.FilePath)
 			data, err := ioutil.ReadFile(jsScopeFile.FilePath)
@@ -192,7 +192,7 @@ func processRequire() {
 					}
 				} else if token.Type == js.TokenJSFunction {
 					funcName := token.Content
-					fmt.Println("func:" + funcName)
+					//fmt.Println("func:" + funcName)
 					if len(funcName) > 8 && string(funcName[0:8]) == "jscraft_" {
 						patchName := string(funcName[8:])
 

@@ -2,6 +2,7 @@ package entity
 
 import (
 	"errors"
+	"fmt"
 
 	"com.newcontinent-team.jscraft/tokenize"
 	"com.newcontinent-team.jscraft/tokenize/js"
@@ -219,6 +220,22 @@ func GetRequireURI(token *tokenize.BaseToken) (string, error) {
 	return "", errors.New("token is invalid")
 }
 
+//GetPatchNameOfFetchCommand ...
+func GetPatchNameOfFetchCommand(token *tokenize.BaseToken) (string, error) {
+	if token.Type == js.TokenJSCraft && token.Content == "fetch" {
+		bracketToken := token.Children.ReadFirstTokenType(js.TokenJSBracket)
+		if bracketToken == nil {
+			return "", errors.New("invalid token")
+		}
+		stringToken := bracketToken.Children.ReadFirstTokenType(js.TokenJSString)
+		if stringToken == nil {
+			return "", errors.New("invalid token")
+		}
+		return stringToken.Children.ConcatStringContent(), nil
+	}
+	return "", errors.New("token is invalid")
+}
+
 func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken) string {
 	content := ""
 	if currToken.Type == js.TokenJSCraft {
@@ -240,18 +257,16 @@ func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken) string {
 		case "conflict":
 			break
 		case "fetch":
-			childrenTokens := currToken.Children.ToArray()
-			for _, token := range childrenTokens {
-				if token.Type == js.TokenJSBracket {
-					nameToken := token.Children.ReadToken()
-					if nameToken.Type == js.TokenJSString {
-						name := nameToken.Children.ConcatStringContent()
-						patch := builder.context.GetPatch(name)
-						if patch != nil {
-							content += builder.processStream(patch)
-						}
-					}
-				}
+			name, err := GetPatchNameOfFetchCommand(currToken)
+			if err != nil {
+				fmt.Println(err.Error())
+				return ""
+			}
+			patch := builder.context.GetPatch(name)
+			if patch != nil {
+				content += builder.processStream(patch)
+			} else {
+				fmt.Println("patch not found:" + name)
 			}
 		}
 	}
