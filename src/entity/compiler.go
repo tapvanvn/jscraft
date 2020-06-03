@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -45,12 +46,12 @@ func (compiler *Compiler) CompileTarget() error {
 	if err != nil && os.IsNotExist(err) {
 		return errors.New("src file not found")
 	}
+	isFromDir := stat.IsDir()
 
-	if stat.IsDir() {
-		return errors.New("src file is directory")
+	ext := ""
+	if !isFromDir {
+		ext = filepath.Ext(compiler.From)
 	}
-
-	ext := filepath.Ext(compiler.From)
 
 	switch strings.ToLower(ext) {
 	case ".js":
@@ -77,13 +78,22 @@ func (compiler *Compiler) CompileTarget() error {
 		}
 
 	default:
-		data, err := ioutil.ReadFile(compiler.From)
-		if err != nil {
-			return err
-		}
-		err = ioutil.WriteFile(compiler.Target, data, 0644)
-		if err != nil {
-			return err
+		if !isFromDir {
+			data, err := ioutil.ReadFile(compiler.From)
+			if err != nil {
+				return err
+			}
+			err = ioutil.WriteFile(compiler.Target, data, 0644)
+			if err != nil {
+				return err
+			}
+		} else {
+			//copy directory
+			cmd := exec.Command("cp", "-r", compiler.From, compiler.Target)
+			err := cmd.Run()
+			if err != nil {
+				return err
+			}
 		}
 	}
 
