@@ -31,12 +31,19 @@ func main() {
 	var templateDir string
 	var layoutDir string
 	var workDir string
+	var isDebug bool
 
-	//flag.StringVar(&templateDir, "template", "", "template path")
+	flag.BoolVar(&isDebug, "d", false, "debug")
 	//flag.StringVar(&layoutDir, "layout", "", "layout path")
 	//flag.StringVar(&workDir, "work", "", "work path")
 
 	flag.Parse()
+
+	if isDebug {
+		fmt.Println("build debug")
+	} else {
+		fmt.Println("build release")
+	}
 
 	numArg := flag.NArg()
 
@@ -89,6 +96,7 @@ func main() {
 	compileContext.TemplateDir = templateDir
 	compileContext.CacheProvider = make(map[string]*entity.JSScopeFile)
 	compileContext.RequireProvider = &requireProvider
+	compileContext.IsDebug = isDebug
 
 	go processRequire()
 

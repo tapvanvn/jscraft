@@ -122,6 +122,11 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 		tmpToken := tokenize.BaseToken{Type: js.TokenJSCraft}
 		meaning.continueReadCraft(&tmpToken)
 		return &tmpToken
+	} else if lower == "jscraft_debug" {
+
+		tmpToken := tokenize.BaseToken{Type: js.TokenJSCraftDebug}
+		meaning.continueCraftDebug(&tmpToken)
+		return &tmpToken
 
 	} else if lower == "{" {
 
@@ -341,6 +346,20 @@ func (meaning *JSMeaning) continueReadVariable(currToken *tokenize.BaseToken) {
 			tmpToken.Content = ";"
 			break
 		} else if tmpContent == ";" {
+			break
+		}
+	}
+}
+
+func (meaning *JSMeaning) continueCraftDebug(currToken *tokenize.BaseToken) {
+	for {
+		if meaning.Stream.EOS() {
+			break
+		}
+		tmpToken := meaning.GetNextMeaningToken()
+
+		if tmpToken.Type == js.TokenJSBlock {
+			currToken.Children = tmpToken.Children
 			break
 		}
 	}

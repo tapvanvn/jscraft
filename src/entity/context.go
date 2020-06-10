@@ -17,6 +17,7 @@ type CompileContext struct {
 	RequireProvider   *(chan *JSScopeFile)
 	cacheRequireTable map[string]*[]string
 	patches           map[string]tokenize.BaseTokenStream
+	IsDebug           bool
 
 	cacheUri map[string]string
 }

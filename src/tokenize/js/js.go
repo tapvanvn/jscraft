@@ -14,4 +14,5 @@ const (
 	TokenJSWord          = 10
 	TokenJSOperator      = 11
 	TokenJSCraft         = 12
+	TokenJSCraftDebug    = 13
 )

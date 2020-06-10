@@ -87,6 +87,10 @@ func (builder *JSBuilder) processStream(stream *tokenize.BaseTokenStream) string
 			content += builder.processVariable(token)
 		case js.TokenJSString:
 			content += builder.processString(token)
+		case js.TokenJSCraftDebug:
+			if builder.context.IsDebug {
+				content += builder.processStream(&token.Children)
+			}
 		default:
 			content += token.Content
 		}
