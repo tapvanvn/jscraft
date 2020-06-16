@@ -44,7 +44,7 @@ func (meaning *JSMeaningHighContext) GetNextMeaningToken() *tokenize.BaseToken {
 
 			break
 		}
-		for {
+		/*for {
 			nextToken := meaning.Stream.GetToken()
 
 			if nextToken == nil {
@@ -59,7 +59,7 @@ func (meaning *JSMeaningHighContext) GetNextMeaningToken() *tokenize.BaseToken {
 
 				break
 			}
-		}
+		}*/
 		//nextToken := meaning.Stream.GetToken()
 		//fmt.Printf("%5d \033[1;36m%s\033[0m\n", nextToken.Type, nextToken.Content)
 
@@ -124,11 +124,39 @@ func (meaning *JSMeaningHighContext) GetNextMeaningToken() *tokenize.BaseToken {
 
 		} else {
 
-			var currToken = tokenize.BaseToken{Type: js.TokenJSPhrase}
+			//var currToken = tokenize.BaseToken{Type: js.TokenJSPhrase}
 
-			meaning.continueReadPhrase(&currToken)
+			//meaning.continueReadPhrase(&currToken)
 
-			return &currToken
+			//return &currToken
+
+			currToken := meaning.Stream.ReadToken()
+
+			if currToken.Type == js.TokenJSBlock ||
+				currToken.Type == js.TokenJSBracket {
+
+				children := tokenize.BaseTokenStream{}
+
+				subMeaning := JSMeaningHighContext{}
+
+				subMeaning.Init(currToken.Children, meaning.Context)
+
+				for {
+
+					nestedToken := subMeaning.GetNextMeaningToken()
+
+					if nestedToken == nil {
+
+						break
+					}
+
+					children.AddToken(*nestedToken)
+				}
+
+				currToken.Children = children
+			}
+
+			return currToken
 		}
 	}
 	return nil
@@ -141,7 +169,11 @@ func (meaning *JSMeaningHighContext) continueReadPhrase(currToken *tokenize.Base
 
 			break
 		}
-		nextToken := meaning.Stream.ReadToken()
+		nextToken := meaning.GetNextMeaningToken()
+
+		if nextToken == nil {
+			break
+		}
 
 		if nextToken.Type == js.TokenJSPhraseBreak {
 
@@ -161,7 +193,7 @@ func GetJSCraft(craftToken *tokenize.BaseToken) *JSCraft {
 
 	firstToken := craftToken.Children.ReadToken()
 
-	if firstToken == nil || (firstToken.Content != "require" && firstToken.Content != "conflict") {
+	if firstToken == nil || (firstToken.Content != "require" && firstToken.Content != "conflict" && firstToken.Content != "fetch") {
 
 		return nil
 	}
@@ -177,7 +209,7 @@ func GetJSCraft(craftToken *tokenize.BaseToken) *JSCraft {
 	}
 	secondToken.Children.ResetToBegin()
 
-	if jscraft.FunctionName == "require" {
+	if jscraft.FunctionName == "require" || jscraft.FunctionName == "fetch" {
 
 		stringToken := secondToken.Children.ReadToken()
 
@@ -197,6 +229,7 @@ func GetJSCraft(craftToken *tokenize.BaseToken) *JSCraft {
 			jscraft.Stream.AddToken(*token)
 		}
 	}
+
 	return &jscraft
 }
 

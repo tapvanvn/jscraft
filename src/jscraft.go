@@ -241,18 +241,10 @@ func processRequire() {
 						if len(jsfunc.FunctionName) > 8 && string(jsfunc.FunctionName[0:8]) == "jscraft_" {
 
 							patchName := string(jsfunc.FunctionName[8:])
+							fmt.Println("patch:", patchName)
 
-							funcTokens := jsfunc.Body.Children.ToArray()
+							compileContext.AddPatch(patchName, jsfunc.Body.Children)
 
-							for _, funcToken := range funcTokens {
-
-								if funcToken.Type == js.TokenJSBlock {
-
-									compileContext.AddPatch(patchName, funcToken.Children)
-
-									break
-								}
-							}
 						}
 					}
 				}

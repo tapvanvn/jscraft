@@ -37,6 +37,7 @@ func (builder *JSBuilder) Init(fromFileScope *JSScopeFile, context *CompileConte
 	builder.context = context
 
 	builder.options = options
+	builder.options.IsDebug = true
 
 	builder.process(fromFileScope)
 }
@@ -88,6 +89,7 @@ func (builder *JSBuilder) process(fileScope *JSScopeFile) {
 
 		builder.cacheBuiltFile = append(builder.cacheBuiltFile, fileScope.FilePath)
 
+		fileScope.Stream.Debug(0, js.TokenName)
 		builder.processStream(&fileScope.Stream, &stream)
 
 		formatter := JSFormatter{}
@@ -124,22 +126,27 @@ func (builder *JSBuilder) processToken(token *tokenize.BaseToken, outStream *tok
 
 	case js.TokenJSFunction, js.TokenJSFunctionLambda:
 
+		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSPhraseBreak})
 		builder.processFunction(token, outStream)
 
 	case js.TokenJSFor:
 
+		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSPhraseBreak})
 		builder.processFor(token, outStream)
 
 	case js.TokenJSWhile:
 
+		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSPhraseBreak})
 		builder.processWhile(token, outStream)
 
 	case js.TokenJSDo:
 
+		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSPhraseBreak})
 		builder.processDo(token, outStream)
 
 	case js.TokenJSIf:
 
+		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSPhraseBreak})
 		builder.processIf(token, outStream)
 
 	case js.TokenJSElseIf:
@@ -198,6 +205,9 @@ func (builder *JSBuilder) processToken(token *tokenize.BaseToken, outStream *tok
 
 			builder.processStream(&token.Children, outStream)
 		}
+	case js.TokenJSRightArrow:
+		//todo: fix this later
+		outStream.AddTokenFromString(js.TokenJSOperator, "=>")
 	default:
 
 		fmt.Printf("process token fail: %s %s %s\n", tokenize.ColorType(token.Type), tokenize.ColorName(js.TokenName(token.Type)), tokenize.ColorContent(token.Content))
@@ -225,7 +235,11 @@ func (builder *JSBuilder) processFunction(currToken *tokenize.BaseToken, outStre
 
 		} else if len(jsfunc.FunctionName) <= 8 || string(jsfunc.FunctionName[0:8]) != "jscraft_" {
 
-			outStream.AddTokenFromString(js.TokenJSWord, "function "+jsfunc.FunctionName)
+			outStream.AddTokenFromString(js.TokenJSWord, "function")
+
+			outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSWordBreak})
+
+			outStream.AddTokenFromString(js.TokenJSWord, jsfunc.FunctionName)
 
 			outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSGlueBegin})
 

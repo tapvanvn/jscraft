@@ -268,6 +268,10 @@ func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound boo
 
 			nextToken := stream.GetTokenIter(iter)
 
+			if nextToken == nil {
+				break
+			}
+
 			if nextToken.Type == phraseBreak || isIgnore(nextToken.Type) {
 
 				if pattern.IsRemoveGlobalIgnore || patternToken.IsIgnoreInResult {

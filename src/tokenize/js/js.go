@@ -344,6 +344,18 @@ var Patterns = []tokenize.Pattern{
 
 	//pattern jscraft.conflict
 	tokenize.Pattern{
+		Type:                 TokenJSCraft,
+		IsRemoveGlobalIgnore: true,
+		Struct: []tokenize.PatternToken{
+			tokenize.PatternToken{Content: "jscraft", IsIgnoreInResult: true},
+			tokenize.PatternToken{Content: ".", IsIgnoreInResult: true},
+			tokenize.PatternToken{Content: "fetch"},
+			tokenize.PatternToken{Type: TokenJSBracket},
+		},
+	},
+
+	//pattern jscraft.conflict
+	tokenize.Pattern{
 		Type:                 TokenJSCraftDebug,
 		IsRemoveGlobalIgnore: true,
 		Struct: []tokenize.PatternToken{

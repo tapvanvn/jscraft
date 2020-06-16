@@ -37,6 +37,8 @@ func (s *scoper) feed(l *liner) {
 	l.content = ""
 }
 
+var numbers []rune = []rune{'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'}
+
 func (s *scoper) finish() {
 
 }
@@ -68,7 +70,10 @@ func (l *liner) feed(token *tokenize.BaseToken) {
 
 	case js.TokenJSWord:
 
-		if l.lastMeaning.Type != 0 && l.lastMeaning.Type != js.TokenJSWord && l.last.Type != js.TokenJSPhraseBreak {
+		if l.lastMeaning.Content != "." &&
+			l.lastMeaning.Type != 0 &&
+			(l.lastMeaning.Type != js.TokenJSWord || l.last.Type == js.TokenJSWordBreak) &&
+			l.last.Type != js.TokenJSPhraseBreak {
 
 			l.content += " "
 		}
@@ -85,10 +90,7 @@ func (l *liner) feed(token *tokenize.BaseToken) {
 
 	case js.TokenJSWordBreak:
 
-		if l.last.Type == js.TokenJSWord {
-
-			l.content += " "
-		}
+		break
 
 	case js.TokenJSGlueBegin:
 
@@ -100,6 +102,9 @@ func (l *liner) feed(token *tokenize.BaseToken) {
 
 	case js.TokenJSOperator:
 
+		if token.Content != "." && (l.last.Type == js.TokenJSWordBreak) {
+			l.content += " "
+		}
 		l.content += token.Content
 
 		l.lastMeaning = *token
