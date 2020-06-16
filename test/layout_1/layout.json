@@ -1,0 +1,20 @@
+{
+    "build_step":[
+        {
+            "target":"work://res/",
+            "from":"layout://res/"
+        },
+        {
+            "target":"work://index.htm",
+            "from":"template://index.htm"
+        },
+        {
+            "target":"work://style.css",
+            "from":"template://style.css"
+        },
+        {
+            "target":"work://script.js",
+            "from":"layout://script.js"
+        }
+    ]
+}

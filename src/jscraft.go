@@ -7,11 +7,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
-	"runtime"
-
 	"com.newcontinent-team.jscraft/entity"
+	"com.newcontinent-team.jscraft/tokenize"
 	"com.newcontinent-team.jscraft/tokenize/js"
 )
 
@@ -85,6 +85,7 @@ func main() {
 	}
 
 	layoutData, err := ioutil.ReadFile(layoutDir + "/layout.json")
+
 	if err != nil {
 		fmt.Println("read layout.json error")
 		os.Exit(1)
@@ -113,11 +114,11 @@ func main() {
 		go addStep(step)
 	}
 
-	numCpu := runtime.NumCPU()
+	numProcessor := runtime.NumCPU()
 
-	numWorker := numCpu
+	numWorker := numProcessor
 
-	if numStep < numCpu {
+	if numStep < numProcessor {
 		numWorker = numStep
 	}
 
@@ -141,101 +142,143 @@ func main() {
 
 func processRequire() {
 
+	var jsmeaning entity.JSMeaning
+
+	var jsmeaningHightContext entity.JSMeaningHighContext
+
+	var uriMeaning entity.URIMeaning
+
 	for {
 		if hasError {
+
 			return
 		}
 		select {
-		case jsScopeFile := <-requireProvider:
 
-			//fmt.Println("process require:" + jsScopeFile.FilePath)
+		case jsScopeFile := <-requireProvider:
 
 			addBegin()
 
+			jsScopeFile.State = entity.FileStateLoading
+
 			ext := filepath.Ext(jsScopeFile.FilePath)
+
 			data, err := ioutil.ReadFile(jsScopeFile.FilePath)
 
+			fmt.Println("load:", jsScopeFile.FilePath)
+
 			if err != nil {
+
 				hasError = true
+
 				fmt.Println(err.Error())
+
+				jsScopeFile.State = entity.FileStateError
+
+				fmt.Println("\tfail")
 				return
 			}
 
 			if strings.ToLower(ext) != ".js" {
 				//Todo: error channel here
 				hasError = true
+				jsScopeFile.State = entity.FileStateError
+
+				fmt.Println("\tfail")
 				return
 			}
 
-			var jsmeaning entity.JSMeaning
 			jsmeaning.Init(string(data), &compileContext)
 
-			fmt.Println("--------")
+			rawStream := tokenize.BaseTokenStream{}
 
 			for {
 				token := jsmeaning.GetNextMeaningToken()
+
 				if token == nil {
 					break
 				}
+				rawStream.AddToken(*token)
+			}
 
+			fmt.Printf("\ttoken:%d\n", rawStream.Length())
+
+			jsmeaningHightContext.Init(rawStream, &compileContext)
+
+			for {
+				token := jsmeaningHightContext.GetNextMeaningToken()
+
+				if token == nil {
+
+					break
+				}
 				if token.Type == js.TokenJSCraft {
-					if token.Content == "require" {
-						blockToken := token.Children.ReadToken()
-						if blockToken.Type == js.TokenJSBracket {
-							stringToken := blockToken.Children.ReadToken()
-							if stringToken.Type == js.TokenJSString {
-								requireURI := stringToken.Children.ConcatStringContent()
-								fmt.Println("require:" + requireURI)
-								var uriMeaning entity.URIMeaning
-								err := uriMeaning.Init(requireURI)
-								if err != nil {
-									//todo: process err
-								}
-								requirePath := compileContext.GetPathForNamespace(uriMeaning.Namespace) + "/" + uriMeaning.RelativePath
-								jsScopeFile.Requires[requirePath] = compileContext.RequireJSFile(requirePath)
-							}
-						}
-					} else if token.Content == "fetch" {
 
+					jscraft := entity.GetJSCraft(token)
+
+					if jscraft != nil {
+
+						if jscraft.FunctionName == "require" {
+
+							requireURI := jscraft.Stream.ConcatStringContent()
+
+							err := uriMeaning.Init(requireURI)
+							if err != nil {
+								//todo: process err
+							}
+							requirePath := compileContext.GetPathForNamespace(uriMeaning.Namespace) + "/" + uriMeaning.RelativePath
+
+							jsScopeFile.Requires[requirePath] = compileContext.RequireJSFile(requirePath)
+
+						}
 					}
 				} else if token.Type == js.TokenJSFunction {
-					funcName := token.Content
-					//fmt.Println("func:" + funcName)
-					if len(funcName) > 8 && string(funcName[0:8]) == "jscraft_" {
-						patchName := string(funcName[8:])
 
-						funcTokens := token.Children.ToArray()
-						fmt.Println("patch:%d", len(funcTokens))
-						for _, funcToken := range funcTokens {
-							fmt.Println("type:", funcToken.Type)
-							if funcToken.Type == js.TokenJSBlock {
+					jsfunc := entity.GetJSFunction(token)
 
-								compileContext.AddPatch(patchName, funcToken.Children)
-								break
+					if jsfunc != nil {
+
+						if len(jsfunc.FunctionName) > 8 && string(jsfunc.FunctionName[0:8]) == "jscraft_" {
+
+							patchName := string(jsfunc.FunctionName[8:])
+
+							funcTokens := jsfunc.Body.Children.ToArray()
+
+							for _, funcToken := range funcTokens {
+
+								if funcToken.Type == js.TokenJSBlock {
+
+									compileContext.AddPatch(patchName, funcToken.Children)
+
+									break
+								}
 							}
 						}
 					}
 				}
-
 				jsScopeFile.Stream.AddToken(*token)
 			}
 
-			//jsScopeFile.Stream.Debug(0)
-			jsScopeFile.IsLoaded = true
-			fmt.Println("--------")
+			fmt.Println("\tloaded")
+
+			jsScopeFile.State = entity.FileStateLoaded
+
 			go addDone()
 		}
 	}
 }
 
 func addStep(step entity.BuildStep) {
+
 	steps <- step
 }
 
 func addBegin() {
+
 	done <- 1
 }
 func addDone() {
+
 	done <- -1
 }
 
@@ -246,21 +289,27 @@ func work() {
 
 	for {
 		if hasError {
+
 			return
 		}
 
 		select {
+
 		case step := <-steps:
 			//fmt.Println(strconv.Itoa(id) + ":from:" + step.From)
 			compiler.Init(step.Target, step.From, &compileContext)
+
 			err := compiler.CompileTarget()
+
 			if err != nil {
+
 				fmt.Println(err.Error())
 			}
 			addDone()
 
 		default:
 			if numStep == 0 {
+
 				return
 			}
 		}
