@@ -144,6 +144,10 @@ func (builder *JSBuilder) processToken(token *tokenize.BaseToken, outStream *tok
 		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSPhraseBreak})
 		builder.processDo(token, outStream)
 
+	case js.TokenJSSwitch:
+		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSPhraseBreak})
+		builder.processSwitch(token, outStream)
+
 	case js.TokenJSIf:
 
 		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSPhraseBreak})
@@ -208,6 +212,7 @@ func (builder *JSBuilder) processToken(token *tokenize.BaseToken, outStream *tok
 	case js.TokenJSRightArrow:
 		//todo: fix this later
 		outStream.AddTokenFromString(js.TokenJSOperator, "=>")
+
 	default:
 
 		fmt.Printf("process token fail: %s %s %s\n", tokenize.ColorType(token.Type), tokenize.ColorName(js.TokenName(token.Type)), tokenize.ColorContent(token.Content))
@@ -489,6 +494,29 @@ func (builder *JSBuilder) processDo(currToken *tokenize.BaseToken, outStream *to
 		builder.processBracket(&jsdo.Condition, outStream)
 
 		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSGlueEnd})
+
+		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSPhraseBreak})
+	}
+}
+
+func (builder *JSBuilder) processSwitch(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream) {
+	jsswitch := GetJSSwitch(currToken)
+
+	if jsswitch != nil {
+
+		outStream.AddTokenFromString(js.TokenJSWord, "switch")
+
+		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSGlueBegin})
+
+		builder.processBracket(&jsswitch.Var, outStream)
+
+		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSGlueEnd})
+
+		bodyToken := tokenize.BaseToken{}
+
+		builder.processBlock(&jsswitch.Body, &bodyToken.Children)
+
+		outStream.AddToken(bodyToken)
 
 		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSPhraseBreak})
 	}

@@ -33,3 +33,9 @@ type JSDo struct {
 
 	Body tokenize.BaseToken
 }
+
+//JSSwitch infomation of a switch
+type JSSwitch struct {
+	Var  tokenize.BaseToken
+	Body tokenize.BaseToken
+}

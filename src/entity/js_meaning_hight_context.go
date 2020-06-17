@@ -376,3 +376,36 @@ func GetJSDo(doToken *tokenize.BaseToken) *JSDo {
 
 	return &jsdo
 }
+
+func GetJSSwitch(switchToken *tokenize.BaseToken) *JSSwitch {
+
+	jsswitch := JSSwitch{}
+
+	switchToken.Children.ResetToBegin()
+
+	firstToken := switchToken.Children.GetToken()
+
+	if firstToken == nil {
+		return nil
+	}
+
+	if firstToken.Type != js.TokenJSBracket {
+
+		return nil
+	}
+
+	jsswitch.Var = *firstToken
+
+	_ = switchToken.Children.ReadToken()
+
+	secondToken := switchToken.Children.GetToken()
+
+	if secondToken == nil || secondToken.Type != js.TokenJSBlock {
+
+		return nil
+	}
+
+	jsswitch.Body = *secondToken
+
+	return &jsswitch
+}
