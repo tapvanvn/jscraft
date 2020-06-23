@@ -15,7 +15,7 @@ type JSMeaning struct {
 	Context *CompileContext
 }
 
-var jsOperators []rune = []rune("$#%^&*-+/!<>=?:@\"' \\;\r\n\t{}[](),.|")
+var jsOperators []rune = []rune("#%^&*-+/!<>=?:@\"' \\;\r\n\t{}[](),.|")
 
 //Init a string file
 func (meaning *JSMeaning) Init(content string, context *CompileContext) error {
@@ -153,6 +153,13 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 				_ = meaning.Stream.ReadToken()
 
 				meaning.continueReadBlockComment(&tmpToken)
+
+				return &tmpToken
+			} else {
+				tmpToken := tokenize.BaseToken{Content: "/", Type: js.TokenJSRegex}
+				tmpToken.Children.AddToken(tokenize.BaseToken{Type: js.TokenJSWord, Content: "/"})
+
+				meaning.continueReadRegex(&tmpToken)
 
 				return &tmpToken
 			}
@@ -321,6 +328,63 @@ func (meaning *JSMeaning) continueReadBlockComment(currToken *tokenize.BaseToken
 		} else {
 
 			currToken.Children.AddToken(*tmpToken)
+		}
+	}
+}
+
+func (meaning *JSMeaning) continueReadRegex(currToken *tokenize.BaseToken) {
+
+	//todo: check syntax violence
+	var specialCharacter bool = false
+	var gotClose bool = false
+
+	for {
+		if meaning.Stream.EOS() {
+
+			break
+		}
+
+		tmpToken := meaning.Stream.GetToken()
+
+		tmpContent := tmpToken.GetContent()
+
+		if tmpContent == "\\" {
+
+			specialCharacter = !specialCharacter
+
+			currToken.Children.AddToken(*tmpToken)
+
+			_ = meaning.Stream.ReadToken()
+
+		} else if tmpContent == "/" {
+
+			if specialCharacter {
+
+				specialCharacter = false
+
+			} else {
+
+				gotClose = true
+			}
+
+			currToken.Children.AddToken(*tmpToken)
+
+			_ = meaning.Stream.ReadToken()
+
+		} else {
+
+			if gotClose && tmpContent != "i" && tmpContent != "m" && tmpContent != "g" {
+
+				break
+
+			} else {
+
+				_ = meaning.Stream.ReadToken()
+
+				specialCharacter = false
+
+				currToken.Children.AddToken(*tmpToken)
+			}
 		}
 	}
 }

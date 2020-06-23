@@ -386,6 +386,7 @@ func GetJSSwitch(switchToken *tokenize.BaseToken) *JSSwitch {
 	firstToken := switchToken.Children.GetToken()
 
 	if firstToken == nil {
+
 		return nil
 	}
 

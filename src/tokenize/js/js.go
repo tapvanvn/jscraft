@@ -26,6 +26,7 @@ const (
 	TokenJSLineComment    = 107
 	TokenJSBlockComment   = 108
 	TokenJSPhrase         = 109
+	TokenJSRegex          = 110
 
 	TokenJSFunction       = 200
 	TokenJSFunctionLambda = 201

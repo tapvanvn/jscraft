@@ -185,6 +185,10 @@ func (builder *JSBuilder) processToken(token *tokenize.BaseToken, outStream *tok
 
 		builder.processString(token, outStream)
 
+	case js.TokenJSRegex:
+
+		builder.processRegex(token, outStream)
+
 	case js.TokenJSWord:
 
 		outStream.AddTokenFromString(js.TokenJSWord, token.Content)
@@ -335,6 +339,14 @@ func (builder *JSBuilder) processString(currToken *tokenize.BaseToken, outStream
 	if currToken.Type == js.TokenJSString {
 
 		outStream.AddTokenFromString(js.TokenJSWord, currToken.Content+currToken.Children.ConcatStringContent()+currToken.Content)
+	}
+}
+
+func (builder *JSBuilder) processRegex(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream) {
+
+	if currToken.Type == js.TokenJSRegex {
+
+		outStream.AddTokenFromString(js.TokenJSWord, currToken.Children.ConcatStringContent())
 	}
 }
 
