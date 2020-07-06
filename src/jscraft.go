@@ -243,7 +243,7 @@ func processRequire() {
 							patchName := string(jsfunc.FunctionName[8:])
 							fmt.Println("patch:", patchName)
 
-							compileContext.AddPatch(patchName, jsfunc.Body.Children)
+							compileContext.AddPatch(jsScopeFile.FilePath, patchName, jsfunc.Body.Children)
 
 						}
 					}

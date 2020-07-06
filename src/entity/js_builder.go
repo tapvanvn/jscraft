@@ -27,6 +27,8 @@ type JSBuilder struct {
 	cacheBuiltFile []string
 
 	HighContextStream tokenize.BaseTokenStream
+
+	fileScope *JSScopeFile
 }
 
 //Init init a build process
@@ -38,6 +40,8 @@ func (builder *JSBuilder) Init(fromFileScope *JSScopeFile, context *CompileConte
 
 	builder.options = options
 	builder.options.IsDebug = true
+
+	builder.fileScope = fromFileScope
 
 	builder.process(fromFileScope)
 }
@@ -584,7 +588,7 @@ func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken, outStream 
 
 			name := jscraft.Stream.ConcatStringContent()
 
-			patch := builder.context.GetPatch(name)
+			patch := builder.context.GetPatch(builder.fileScope.FilePath, name)
 
 			if patch != nil {
 

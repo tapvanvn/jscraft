@@ -9,7 +9,9 @@ import (
 	"com.newcontinent-team.jscraft/tokenize"
 )
 
-//CompileContext global conntext for compiles work
+type Patches = map[string]tokenize.BaseTokenStream
+
+//CompileContext conntext for compiles work
 type CompileContext struct {
 	TemplateDir string
 
@@ -23,7 +25,9 @@ type CompileContext struct {
 
 	cacheRequireTable map[string]*[]string
 
-	patches map[string]tokenize.BaseTokenStream
+	patches Patches
+
+	filePatches map[string]Patches
 
 	IsDebug bool
 
@@ -37,7 +41,9 @@ func (context *CompileContext) Init() {
 
 	context.cacheRequireTable = make(map[string]*[]string)
 
-	context.patches = make(map[string]tokenize.BaseTokenStream, 0)
+	context.patches = make(Patches, 0)
+
+	context.filePatches = make(map[string]Patches)
 
 	context.cacheURI = make(map[string]string, 0)
 }
@@ -192,8 +198,8 @@ func (context *CompileContext) fetchRequireTable(fileScope *JSScopeFile, table *
 	}
 }
 
-//AddPatch add a patch
-func (context *CompileContext) AddPatch(name string, stream tokenize.BaseTokenStream) {
+//AddGlobalPatch ...
+func (context *CompileContext) AddGlobalPatch(name string, stream tokenize.BaseTokenStream) {
 
 	context.mux.Lock()
 
@@ -202,12 +208,36 @@ func (context *CompileContext) AddPatch(name string, stream tokenize.BaseTokenSt
 	context.mux.Unlock()
 }
 
+//AddPatch add a patch
+func (context *CompileContext) AddPatch(file string, name string, stream tokenize.BaseTokenStream) {
+
+	context.mux.Lock()
+
+	if _, ok := context.filePatches[file]; !ok {
+		context.filePatches[file] = make(Patches)
+	}
+
+	context.filePatches[file][name] = stream
+
+	context.patches[name] = stream
+
+	context.mux.Unlock()
+
+}
+
 //GetPatch get patch via name
-func (context *CompileContext) GetPatch(name string) *tokenize.BaseTokenStream {
+func (context *CompileContext) GetPatch(file string, name string) *tokenize.BaseTokenStream {
+
+	if patches, ok := context.filePatches[file]; ok {
+		if stream, ok := patches[name]; ok {
+			return &stream
+		}
+	}
 
 	if stream, ok := context.patches[name]; ok {
 
 		return &stream
 	}
+
 	return nil
 }
