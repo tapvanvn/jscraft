@@ -5,20 +5,19 @@ jscraft.conflict(["template://js/module/touch.js"]);
 
 function layout()/* this is block comment */ {
 
-    base();
+    baseFunction();
+
     var a = 1;
     var b = 2;
     if(a == b) {
+
         console.log("hello");
-    }else {
+
+    } else {
+
         console.log("herro");
     }
 }
-
-()=>{
-    base()
-}
-
 
 jscraft_debug
 {

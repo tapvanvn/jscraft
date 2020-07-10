@@ -1,0 +1,8 @@
+{
+    "build_step":[
+        {
+            "target":"work://layout.js",
+            "from":"layout://layout_3.js"
+        }
+    ]
+}

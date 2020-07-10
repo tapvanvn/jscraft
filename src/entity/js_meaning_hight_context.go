@@ -2,6 +2,7 @@ package entity
 
 import (
 	"fmt"
+	"strings"
 
 	"com.newcontinent-team.jscraft/tokenize"
 	"com.newcontinent-team.jscraft/tokenize/js"
@@ -13,6 +14,8 @@ type JSMeaningHighContext struct {
 
 	Context *CompileContext
 }
+
+var jscraftKeywords = ",require,conflict,fetch,template,build,"
 
 //Init init before using
 func (meaning *JSMeaningHighContext) Init(stream tokenize.BaseTokenStream, context *CompileContext) error {
@@ -193,10 +196,11 @@ func GetJSCraft(craftToken *tokenize.BaseToken) *JSCraft {
 
 	firstToken := craftToken.Children.ReadToken()
 
-	if firstToken == nil || (firstToken.Content != "require" && firstToken.Content != "conflict" && firstToken.Content != "fetch") {
+	if firstToken == nil || strings.Index(jscraftKeywords, ","+firstToken.Content+",") == -1 {
 
 		return nil
 	}
+
 	jscraft.FunctionName = firstToken.Content
 
 	jscraft.Stream = &tokenize.BaseTokenStream{}
@@ -227,6 +231,16 @@ func GetJSCraft(craftToken *tokenize.BaseToken) *JSCraft {
 			token := stringToken.Children.ReadToken()
 
 			jscraft.Stream.AddToken(*token)
+		}
+	} else {
+
+		for {
+
+			if secondToken.Children.EOS() {
+
+				break
+			}
+			jscraft.Stream.AddToken(*secondToken.Children.ReadToken())
 		}
 	}
 

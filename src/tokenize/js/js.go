@@ -331,6 +331,30 @@ var Patterns = []tokenize.Pattern{
 		},
 	},
 
+	//pattern jscraft.template
+	tokenize.Pattern{
+		Type:                 TokenJSCraft,
+		IsRemoveGlobalIgnore: true,
+		Struct: []tokenize.PatternToken{
+			tokenize.PatternToken{Content: "jscraft", IsIgnoreInResult: true},
+			tokenize.PatternToken{Content: ".", IsIgnoreInResult: true},
+			tokenize.PatternToken{Content: "template"},
+			tokenize.PatternToken{Type: TokenJSBracket, CanNested: true},
+		},
+	},
+
+	//pattern jscraft.build
+	tokenize.Pattern{
+		Type:                 TokenJSCraft,
+		IsRemoveGlobalIgnore: true,
+		Struct: []tokenize.PatternToken{
+			tokenize.PatternToken{Content: "jscraft", IsIgnoreInResult: true},
+			tokenize.PatternToken{Content: ".", IsIgnoreInResult: true},
+			tokenize.PatternToken{Content: "build"},
+			tokenize.PatternToken{Type: TokenJSBracket, CanNested: true},
+		},
+	},
+
 	//pattern jscraft.conflict
 	tokenize.Pattern{
 		Type:                 TokenJSCraft,

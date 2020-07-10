@@ -4,6 +4,6 @@ jscraft.build("base_template",{
 
     "content": ()=>{
 
-        console.log("test content")
+        console.log("test content part 2")
     }
 })

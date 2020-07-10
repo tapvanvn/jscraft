@@ -23,7 +23,7 @@ var (
 	workID          int                   = 0
 	hasError        bool                  = false
 	compileContext  entity.CompileContext
-	requireProvider chan *entity.JSScopeFile = make(chan *entity.JSScopeFile, 0)
+	requireProvider chan *entity.JSScopeFile = make(chan *entity.JSScopeFile)
 )
 
 func main() {
@@ -136,7 +136,6 @@ func main() {
 		} else if numStep <= 0 {
 			break
 		}
-
 	}
 }
 
@@ -230,8 +229,15 @@ func processRequire() {
 
 							jsScopeFile.Requires[requirePath] = compileContext.RequireJSFile(requirePath)
 
+						} else if jscraft.FunctionName == "template" {
+
+							templateName := jscraft.GetTemplateName()
+
+							jsScopeFile.AddTemplate(templateName, jscraft.GetTemplateToken())
+
 						}
 					}
+
 				} else if token.Type == js.TokenJSFunction {
 
 					jsfunc := entity.GetJSFunction(token)
@@ -241,7 +247,6 @@ func processRequire() {
 						if len(jsfunc.FunctionName) > 8 && string(jsfunc.FunctionName[0:8]) == "jscraft_" {
 
 							patchName := string(jsfunc.FunctionName[8:])
-							fmt.Println("patch:", patchName)
 
 							compileContext.AddPatch(jsScopeFile.FilePath, patchName, jsfunc.Body.Children)
 

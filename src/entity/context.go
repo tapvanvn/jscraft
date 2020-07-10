@@ -9,6 +9,7 @@ import (
 	"com.newcontinent-team.jscraft/tokenize"
 )
 
+//Patches patch type
 type Patches = map[string]tokenize.BaseTokenStream
 
 //CompileContext conntext for compiles work
@@ -29,6 +30,8 @@ type CompileContext struct {
 
 	filePatches map[string]Patches
 
+	//builderPatches map[string]Patches
+
 	IsDebug bool
 
 	cacheURI map[string]string
@@ -45,8 +48,20 @@ func (context *CompileContext) Init() {
 
 	context.filePatches = make(map[string]Patches)
 
+	//context.builderPatches = make(map[string]Patches)
+
 	context.cacheURI = make(map[string]string, 0)
 }
+
+/*
+func (context *CompileContext) AddBuilder(filepath string) {
+
+	if _, ok := builderPatches[filepath]; !ok {
+
+		builderPatches[filepath] = make(Patches)
+	}
+}
+*/
 
 //GetPathForNamespace get
 func (context *CompileContext) GetPathForNamespace(namespace string) string {
@@ -86,6 +101,7 @@ func (context *CompileContext) GetPathForURI(uri string) (string, error) {
 
 		return "", err
 	}
+
 	path := context.GetPathForNamespace(meaning.Namespace) + "/" + meaning.RelativePath
 
 	context.mux.Lock()
@@ -173,6 +189,62 @@ func (context *CompileContext) IsReadyFor(fileScope *JSScopeFile) bool {
 	return true
 }
 
+//MakeBuildContext make builder context
+func (context *CompileContext) MakeBuildContext(fileScope *JSScopeFile) *BuilderContext {
+
+	if !context.IsReadyFor(fileScope) {
+
+		return nil
+	}
+
+	builderContext := BuilderContext{}
+
+	builderContext.Init(fileScope, context)
+
+	table, _ := context.cacheRequireTable[fileScope.FilePath]
+
+	context.fetchRequireTable(fileScope, table)
+
+	for _, requireFile := range *table {
+
+		fileScope, _ := context.CacheProvider[requireFile]
+
+		for templateName, token := range fileScope.Templates {
+
+			builderContext.AddTemplate(templateName, token)
+		}
+	}
+
+	return &builderContext
+}
+
+//MakePatchContext make builder context
+func (context *CompileContext) MakePatchContext(fileScope *JSScopeFile) *PatchContext {
+
+	if !context.IsReadyFor(fileScope) {
+
+		return nil
+	}
+
+	patchContext := PatchContext{}
+
+	patchContext.Init(nil, context)
+
+	context.mux.Lock()
+
+	if patches, ok := context.filePatches[fileScope.FilePath]; !ok {
+
+		for patchName, patch := range patches {
+
+			patchContext.AddPatch(patchName, patch)
+		}
+	}
+
+	context.mux.Unlock()
+
+	return &patchContext
+}
+
 func (context *CompileContext) fetchRequireTable(fileScope *JSScopeFile, table *[]string) {
 
 	for requireFile, requireFileScope := range fileScope.Requires {
@@ -225,6 +297,17 @@ func (context *CompileContext) AddPatch(file string, name string, stream tokeniz
 
 }
 
+//GetGlobalPatch get patch in global patch
+func (context *CompileContext) GetGlobalPatch(name string) *tokenize.BaseTokenStream {
+
+	if stream, ok := context.patches[name]; ok {
+
+		return &stream
+	}
+
+	return nil
+}
+
 //GetPatch get patch via name
 func (context *CompileContext) GetPatch(file string, name string) *tokenize.BaseTokenStream {
 
@@ -234,10 +317,6 @@ func (context *CompileContext) GetPatch(file string, name string) *tokenize.Base
 		}
 	}
 
-	if stream, ok := context.patches[name]; ok {
+	return context.GetGlobalPatch(name)
 
-		return &stream
-	}
-
-	return nil
 }

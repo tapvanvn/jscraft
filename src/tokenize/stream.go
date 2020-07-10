@@ -48,7 +48,7 @@ func (stream *BaseTokenStream) AddTokenByContent(content []rune, tokenType int) 
 	stream.Tokens = append(stream.Tokens, BaseToken{Content: string(content), Type: tokenType})
 }
 
-//Debug Debug
+//Debug print debug tree
 func (stream *BaseTokenStream) Debug(level int, fnName func(int) string) {
 
 	lastOffset := stream.Offset
