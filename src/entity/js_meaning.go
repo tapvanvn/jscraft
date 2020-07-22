@@ -156,12 +156,16 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 
 				return &tmpToken
 			} else {
-				tmpToken := tokenize.BaseToken{Content: "/", Type: js.TokenJSRegex}
-				tmpToken.Children.AddToken(tokenize.BaseToken{Type: js.TokenJSWord, Content: "/"})
+				if meaning.testRegex() {
+					tmpToken := tokenize.BaseToken{Content: "/", Type: js.TokenJSRegex}
+					tmpToken.Children.AddToken(tokenize.BaseToken{Type: js.TokenJSWord, Content: "/"})
 
-				meaning.continueReadRegex(&tmpToken)
+					meaning.continueReadRegex(&tmpToken)
 
-				return &tmpToken
+					return &tmpToken
+				} else {
+					return &tokenize.BaseToken{Content: "/", Type: js.TokenJSOperator}
+				}
 			}
 		}
 
@@ -175,6 +179,31 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 	}
 
 	return token
+}
+
+func (meaning *JSMeaning) testRegex() bool {
+
+	var i = meaning.Stream.Offset + 1
+	for {
+		tmpToken := meaning.Stream.GetTokenAt(i)
+
+		if tmpToken == nil {
+			return false
+		}
+
+		if tmpToken.Content == "/" {
+
+			testToken := meaning.Stream.GetTokenAt(i + 1)
+			if testToken.Content == "i" || testToken.Content == "m" || testToken.Content == "g" {
+				return true
+
+			} else {
+				return false
+			}
+		}
+		i += 1
+	}
+	return false
 }
 
 func (meaning *JSMeaning) continueReadBracket(currToken *tokenize.BaseToken) {

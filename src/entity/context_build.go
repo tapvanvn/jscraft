@@ -1,6 +1,10 @@
 package entity
 
-import "com.newcontinent-team.jscraft/tokenize"
+import (
+	"log"
+
+	"com.newcontinent-team.jscraft/tokenize"
+)
 
 //BuilderContext context for building per task
 type BuilderContext struct {
@@ -25,6 +29,9 @@ func (ctxBuild *BuilderContext) AddTemplate(name string, token *tokenize.BaseTok
 //GetTemplate get template
 func (ctxBuild *BuilderContext) GetTemplate(name string) *tokenize.BaseToken {
 
+	for name, _ := range ctxBuild.Templates {
+		log.Println("ctxBuild template:" + name)
+	}
 	if token, ok := ctxBuild.Templates[name]; ok {
 
 		return token

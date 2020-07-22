@@ -110,7 +110,7 @@ func (builder *JSBuilder) process(fileScope *JSScopeFile, patchContext *PatchCon
 
 		builder.cacheBuiltFile = append(builder.cacheBuiltFile, fileScope.FilePath)
 
-		fileScope.Stream.Debug(0, js.TokenName)
+		//fileScope.Stream.Debug(0, js.TokenName)
 		builder.processStream(&fileScope.Stream, &stream, patchContext)
 
 		formatter := JSFormatter{}
@@ -121,7 +121,7 @@ func (builder *JSBuilder) process(fileScope *JSScopeFile, patchContext *PatchCon
 
 		if builder.options.IsDebug {
 
-			stream.Debug(0, js.TokenName)
+			//stream.Debug(0, js.TokenName)
 		}
 	}
 }
@@ -619,10 +619,10 @@ func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken, outStream 
 
 				if patchContext.Parent != nil {
 
-					builder.processStream(patch, outStream, patchContext.Parent)
+					builder.processPatch(patch, outStream, patchContext.Parent)
 				} else {
 
-					builder.processStream(patch, outStream, patchContext)
+					builder.processPatch(patch, outStream, patchContext)
 				}
 
 			} else {
@@ -638,7 +638,7 @@ func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken, outStream 
 
 			if templateToken == nil {
 
-				log.Fatal("syntax error")
+				log.Fatal("syntax error :" + templateName)
 			}
 
 			buildPatchContext := &PatchContext{}
@@ -651,12 +651,24 @@ func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken, outStream 
 
 			fmt.Println("build :" + templateName + ":" + templateToken.Content)
 
-			templateToken.Children.Debug(0, js.TokenName)
+			//templateToken.Children.Debug(0, js.TokenName)
 			break
 		}
 	} else {
 
 		fmt.Println("get craft fail")
 
+	}
+}
+
+func (builder *JSBuilder) processPatch(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+
+	if currToken.Type == js.TokenJSPatchStream {
+
+		builder.processStream(&currToken.Children, outStream, patchContext)
+
+	} else {
+
+		builder.processToken(currToken, outStream, patchContext)
 	}
 }

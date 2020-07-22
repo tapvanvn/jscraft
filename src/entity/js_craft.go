@@ -75,7 +75,7 @@ func (jscraft *JSCraft) GetBuildBlockObject(patchContext *PatchContext) {
 
 			secondToken.Children.ResetToBegin()
 			fmt.Println("---------")
-			secondToken.Children.Debug(0, js.TokenName)
+			//secondToken.Children.Debug(0, js.TokenName)
 			for {
 
 				if secondToken.Children.EOS() {
@@ -117,14 +117,24 @@ func (jscraft *JSCraft) GetBuildBlockObject(patchContext *PatchContext) {
 
 				fmt.Println(js.TokenName(contentToken.Type))
 
-				contentBuildFunc := GetJSFunction(contentToken)
+				if contentToken.Type == js.TokenJSFunction || contentToken.Type == js.TokenJSFunctionLambda {
 
-				if contentBuildFunc == nil {
+					contentBuildFunc := GetJSFunction(contentToken)
 
-					log.Fatal("Syntax Error 1" + contentToken.Content)
+					if contentBuildFunc == nil {
+
+						log.Fatal("Syntax Error 1" + contentToken.Content)
+					}
+
+					patchStreamToken := tokenize.BaseToken{Type: js.TokenJSPatchStream, Children: contentBuildFunc.Body.Children}
+
+					patchContext.AddPatch(patchName, patchStreamToken)
+
+				} else if contentToken.Type == js.TokenJSString || contentToken.Type == js.TokenJSWord {
+
+					patchContext.AddPatch(patchName, *contentToken)
 				}
 
-				patchContext.AddPatch(patchName, contentBuildFunc.Body.Children)
 			}
 		}
 	}

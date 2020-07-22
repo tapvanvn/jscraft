@@ -1,6 +1,8 @@
 package entity
 
 import (
+	"log"
+
 	"com.newcontinent-team.jscraft/tokenize"
 )
 
@@ -36,7 +38,7 @@ func (scope *JSScopeFile) Init() {
 //AddTemplate template in file
 func (scope *JSScopeFile) AddTemplate(name string, token *tokenize.BaseToken) {
 
-	//log.Println("add template:" + name)
+	log.Println("add template:" + name + " at file:" + scope.FilePath)
 
 	scope.Templates[name] = token
 

@@ -42,6 +42,8 @@ const (
 
 	TokenJSCraft      = 300
 	TokenJSCraftDebug = 301
+
+	TokenJSPatchStream = 400
 )
 
 //TokenName return name from type of token

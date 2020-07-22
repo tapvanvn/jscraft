@@ -248,7 +248,9 @@ func processRequire() {
 
 							patchName := string(jsfunc.FunctionName[8:])
 
-							compileContext.AddPatch(jsScopeFile.FilePath, patchName, jsfunc.Body.Children)
+							patchStreamToken := tokenize.BaseToken{Type: js.TokenJSPatchStream, Children: jsfunc.Body.Children}
+
+							compileContext.AddPatch(jsScopeFile.FilePath, patchName, patchStreamToken)
 
 						}
 					}

@@ -10,7 +10,7 @@ import (
 )
 
 //Patches patch type
-type Patches = map[string]tokenize.BaseTokenStream
+type Patches = map[string]tokenize.BaseToken
 
 //CompileContext conntext for compiles work
 type CompileContext struct {
@@ -271,17 +271,17 @@ func (context *CompileContext) fetchRequireTable(fileScope *JSScopeFile, table *
 }
 
 //AddGlobalPatch ...
-func (context *CompileContext) AddGlobalPatch(name string, stream tokenize.BaseTokenStream) {
+func (context *CompileContext) AddGlobalPatch(name string, token tokenize.BaseToken) {
 
 	context.mux.Lock()
 
-	context.patches[name] = stream
+	context.patches[name] = token
 
 	context.mux.Unlock()
 }
 
 //AddPatch add a patch
-func (context *CompileContext) AddPatch(file string, name string, stream tokenize.BaseTokenStream) {
+func (context *CompileContext) AddPatch(file string, name string, token tokenize.BaseToken) {
 
 	context.mux.Lock()
 
@@ -289,27 +289,27 @@ func (context *CompileContext) AddPatch(file string, name string, stream tokeniz
 		context.filePatches[file] = make(Patches)
 	}
 
-	context.filePatches[file][name] = stream
+	context.filePatches[file][name] = token
 
-	context.patches[name] = stream
+	context.patches[name] = token
 
 	context.mux.Unlock()
 
 }
 
 //GetGlobalPatch get patch in global patch
-func (context *CompileContext) GetGlobalPatch(name string) *tokenize.BaseTokenStream {
+func (context *CompileContext) GetGlobalPatch(name string) *tokenize.BaseToken {
 
-	if stream, ok := context.patches[name]; ok {
+	if token, ok := context.patches[name]; ok {
 
-		return &stream
+		return &token
 	}
 
 	return nil
 }
 
 //GetPatch get patch via name
-func (context *CompileContext) GetPatch(file string, name string) *tokenize.BaseTokenStream {
+func (context *CompileContext) GetPatch(file string, name string) *tokenize.BaseToken {
 
 	if patches, ok := context.filePatches[file]; ok {
 		if stream, ok := patches[name]; ok {

@@ -20,17 +20,17 @@ func (patchContext *PatchContext) Init(parent *PatchContext, compileContext *Com
 }
 
 //AddPatch add patch to patchContext
-func (patchContext *PatchContext) AddPatch(patchName string, contentStream tokenize.BaseTokenStream) {
+func (patchContext *PatchContext) AddPatch(patchName string, token tokenize.BaseToken) {
 
-	patchContext.Patches[patchName] = contentStream
+	patchContext.Patches[patchName] = token
 }
 
 //GetPatch get patch
-func (patchContext *PatchContext) GetPatch(patchName string) *tokenize.BaseTokenStream {
+func (patchContext *PatchContext) GetPatch(patchName string) *tokenize.BaseToken {
 
-	if stream, ok := patchContext.Patches[patchName]; ok {
+	if token, ok := patchContext.Patches[patchName]; ok {
 
-		return &stream
+		return &token
 
 	} else if patchContext.Parent != nil {
 
