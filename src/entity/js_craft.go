@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
-	"com.newcontinent-team.jscraft/tokenize"
-	"com.newcontinent-team.jscraft/tokenize/js"
+	"newcontinent-team.com/jscraft/tokenize"
+	"newcontinent-team.com/jscraft/tokenize/js"
 )
 
 //JSCraft infomation about scraft call

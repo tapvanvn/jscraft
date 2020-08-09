@@ -1,7 +1,7 @@
 package js
 
 import (
-	"com.newcontinent-team.jscraft/tokenize"
+	"newcontinent-team.com/jscraft/tokenize"
 )
 
 const (

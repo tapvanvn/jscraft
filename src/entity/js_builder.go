@@ -6,8 +6,8 @@ import (
 	"log"
 	"time"
 
-	"com.newcontinent-team.jscraft/tokenize"
-	"com.newcontinent-team.jscraft/tokenize/js"
+	"newcontinent-team.com/jscraft/tokenize"
+	"newcontinent-team.com/jscraft/tokenize/js"
 )
 
 //JSBuildOptions build option
@@ -596,7 +596,7 @@ func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken, outStream 
 			path, err := builder.context.GetPathForURI(requireURI)
 
 			if err != nil {
-
+				log.Println("jscraft require error" + err.Error())
 				return
 			}
 			scopeFile := builder.context.RequireJSFile(path)
@@ -620,6 +620,7 @@ func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken, outStream 
 				if patchContext.Parent != nil {
 
 					builder.processPatch(patch, outStream, patchContext.Parent)
+
 				} else {
 
 					builder.processPatch(patch, outStream, patchContext)
@@ -638,7 +639,13 @@ func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken, outStream 
 
 			if templateToken == nil {
 
+				builder.builderContext.Debug()
+				builder.builderContext.Context.DebugDependence(builder.builderContext.FileScope)
+				builder.builderContext.FileScope.Debug()
+				//patchContext.Debug()
+				//patchContext.Context.Debug()
 				log.Fatal("syntax error :" + templateName)
+
 			}
 
 			buildPatchContext := &PatchContext{}

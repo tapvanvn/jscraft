@@ -5,14 +5,16 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 
-	"com.newcontinent-team.jscraft/entity"
-	"com.newcontinent-team.jscraft/tokenize"
-	"com.newcontinent-team.jscraft/tokenize/js"
+	"newcontinent-team.com/jscraft/entity"
+	"newcontinent-team.com/jscraft/tokenize"
+	"newcontinent-team.com/jscraft/tokenize/js"
 )
 
 var (
@@ -129,7 +131,7 @@ func main() {
 	for {
 		if value, ok := <-done; ok {
 			numStep += value
-			//fmt.Println("remainStep:" + strconv.Itoa(numStep))
+
 			if numStep == 0 {
 				break
 			}
@@ -157,6 +159,8 @@ func processRequire() {
 		case jsScopeFile := <-requireProvider:
 
 			addBegin()
+
+			log.Println("\nprocess require : \n\t" + jsScopeFile.FilePath + "\n")
 
 			jsScopeFile.State = entity.FileStateLoading
 
@@ -234,10 +238,8 @@ func processRequire() {
 							templateName := jscraft.GetTemplateName()
 
 							jsScopeFile.AddTemplate(templateName, jscraft.GetTemplateToken())
-
 						}
 					}
-
 				} else if token.Type == js.TokenJSFunction {
 
 					jsfunc := entity.GetJSFunction(token)
@@ -251,14 +253,13 @@ func processRequire() {
 							patchStreamToken := tokenize.BaseToken{Type: js.TokenJSPatchStream, Children: jsfunc.Body.Children}
 
 							compileContext.AddPatch(jsScopeFile.FilePath, patchName, patchStreamToken)
-
 						}
 					}
 				}
 				jsScopeFile.Stream.AddToken(*token)
 			}
 
-			fmt.Println("\tloaded")
+			//fmt.Println("\tloaded")
 
 			jsScopeFile.State = entity.FileStateLoaded
 
@@ -282,9 +283,8 @@ func addDone() {
 }
 
 func work() {
-	//var id = workID
-	//workID++
-	var compiler entity.Compiler
+	var id = workID
+	workID++
 
 	for {
 		if hasError {
@@ -295,7 +295,8 @@ func work() {
 		select {
 
 		case step := <-steps:
-			//fmt.Println(strconv.Itoa(id) + ":from:" + step.From)
+			fmt.Println(strconv.Itoa(id) + ":from:" + step.From)
+			var compiler entity.Compiler
 			compiler.Init(step.Target, step.From, &compileContext)
 
 			err := compiler.CompileTarget()

@@ -1,6 +1,10 @@
 package entity
 
-import "com.newcontinent-team.jscraft/tokenize"
+import (
+	"log"
+
+	"newcontinent-team.com/jscraft/tokenize"
+)
 
 //PatchContext patch context
 type PatchContext struct {
@@ -38,4 +42,14 @@ func (patchContext *PatchContext) GetPatch(patchName string) *tokenize.BaseToken
 	}
 
 	return patchContext.Context.GetGlobalPatch(patchName)
+}
+
+//Debug print debug
+func (patchContext *PatchContext) Debug() {
+	log.Println("debug----patchContext")
+	for name, _ := range patchContext.Patches {
+
+		log.Println("-name-:" + name)
+
+	}
 }

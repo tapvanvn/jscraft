@@ -1,16 +1,40 @@
 package entity
 
 import (
-	"fmt"
+	"log"
+	"strconv"
 	"strings"
 
 	"sync"
 
-	"com.newcontinent-team.jscraft/tokenize"
+	"newcontinent-team.com/jscraft/tokenize"
 )
 
 //Patches patch type
 type Patches = map[string]tokenize.BaseToken
+
+//RequireTable save require files to build a file
+type RequireTable struct {
+	OwnerFile string
+	Files     []string
+}
+
+//AddFile add file
+func (table *RequireTable) AddFile(filePath string) {
+
+	log.Println("\n" + table.OwnerFile + "\n===>" + filePath + "\n")
+	table.Files = append(table.Files, filePath)
+}
+
+//HasFile check if added file
+func (table *RequireTable) HasFile(filePath string) bool {
+	for _, file := range table.Files {
+		if file == filePath {
+			return true
+		}
+	}
+	return false
+}
 
 //CompileContext conntext for compiles work
 type CompileContext struct {
@@ -24,7 +48,7 @@ type CompileContext struct {
 
 	RequireProvider *(chan *JSScopeFile)
 
-	cacheRequireTable map[string]*[]string
+	cacheRequireTable map[string]*RequireTable
 
 	patches Patches
 
@@ -42,26 +66,14 @@ type CompileContext struct {
 //Init init context
 func (context *CompileContext) Init() {
 
-	context.cacheRequireTable = make(map[string]*[]string)
+	context.cacheRequireTable = make(map[string]*RequireTable)
 
 	context.patches = make(Patches, 0)
 
 	context.filePatches = make(map[string]Patches)
 
-	//context.builderPatches = make(map[string]Patches)
-
 	context.cacheURI = make(map[string]string, 0)
 }
-
-/*
-func (context *CompileContext) AddBuilder(filepath string) {
-
-	if _, ok := builderPatches[filepath]; !ok {
-
-		builderPatches[filepath] = make(Patches)
-	}
-}
-*/
 
 //GetPathForNamespace get
 func (context *CompileContext) GetPathForNamespace(namespace string) string {
@@ -154,18 +166,19 @@ func (context *CompileContext) IsReadyFor(fileScope *JSScopeFile) bool {
 
 	if !ok {
 
-		fmt.Println("not found table for file in cache, create onne")
-
-		tmpTable := make([]string, 0)
-
-		table = &tmpTable
+		log.Println("not found table for file in cache, create one: \n\t" + fileScope.FilePath)
 
 		context.mux.Lock()
 
-		context.cacheRequireTable[fileScope.FilePath] = table
+		context.cacheRequireTable[fileScope.FilePath] = &RequireTable{
+			OwnerFile: fileScope.FilePath,
+			Files:     make([]string, 0)}
+
+		table, _ = context.cacheRequireTable[fileScope.FilePath]
 
 		context.mux.Unlock()
 	}
+
 	context.fetchRequireTable(fileScope, table)
 
 	if fileScope.State != FileStateLoaded {
@@ -173,11 +186,13 @@ func (context *CompileContext) IsReadyFor(fileScope *JSScopeFile) bool {
 		return false
 	}
 
-	for _, requireFile := range *table {
+	for _, requireFile := range table.Files {
 
 		fileScope, ok := context.CacheProvider[requireFile]
 
 		if !ok {
+
+			log.Println("ERR2:" + requireFile)
 			//todo: error
 		}
 
@@ -205,7 +220,7 @@ func (context *CompileContext) MakeBuildContext(fileScope *JSScopeFile) *Builder
 
 	context.fetchRequireTable(fileScope, table)
 
-	for _, requireFile := range *table {
+	for _, requireFile := range table.Files {
 
 		fileScope, _ := context.CacheProvider[requireFile]
 
@@ -216,6 +231,19 @@ func (context *CompileContext) MakeBuildContext(fileScope *JSScopeFile) *Builder
 	}
 
 	return &builderContext
+}
+
+func (context *CompileContext) fetchRequireTable(fileScope *JSScopeFile, table *RequireTable) {
+
+	for requireFile, requireFileScope := range fileScope.Requires {
+
+		if !table.HasFile(requireFile) {
+
+			table.AddFile(requireFile)
+
+		}
+		context.fetchRequireTable(requireFileScope, table)
+	}
 }
 
 //MakePatchContext make builder context
@@ -232,7 +260,7 @@ func (context *CompileContext) MakePatchContext(fileScope *JSScopeFile) *PatchCo
 
 	context.mux.Lock()
 
-	if patches, ok := context.filePatches[fileScope.FilePath]; !ok {
+	if patches, ok := context.filePatches[fileScope.FilePath]; ok {
 
 		for patchName, patch := range patches {
 
@@ -243,31 +271,6 @@ func (context *CompileContext) MakePatchContext(fileScope *JSScopeFile) *PatchCo
 	context.mux.Unlock()
 
 	return &patchContext
-}
-
-func (context *CompileContext) fetchRequireTable(fileScope *JSScopeFile, table *[]string) {
-
-	for requireFile, requireFileScope := range fileScope.Requires {
-
-		found := false
-
-		for _, tableFile := range *table {
-
-			if requireFile == tableFile {
-
-				found = true
-
-				break
-			}
-		}
-
-		if !found {
-
-			*table = append(*table, requireFile)
-
-			context.fetchRequireTable(requireFileScope, table)
-		}
-	}
 }
 
 //AddGlobalPatch ...
@@ -319,4 +322,53 @@ func (context *CompileContext) GetPatch(file string, name string) *tokenize.Base
 
 	return context.GetGlobalPatch(name)
 
+}
+
+//Debug debug
+func (context *CompileContext) Debug() {
+
+	log.Println("--------------begin template-----------")
+	for _, scope := range context.CacheProvider {
+
+		log.Println("file:" + scope.FilePath)
+		log.Println("state:" + strconv.Itoa(scope.State))
+		for name := range scope.Templates {
+			log.Println("\ttemp:" + name)
+		}
+	}
+
+	log.Println("--------------end template-----------")
+}
+
+//DebugDependence print debug dependence of filepath
+func (context *CompileContext) DebugDependence(fileScope *JSScopeFile) {
+	log.Println("-----begin dependency debug----")
+	defer log.Println("----end dependency debug----")
+
+	log.Println(fileScope.FilePath)
+
+	table, ok := context.cacheRequireTable[fileScope.FilePath]
+
+	if !ok {
+
+		log.Println("not found require table")
+	}
+
+	for _, requireFile := range table.Files {
+
+		log.Println("require:" + requireFile)
+
+		scope, ok := context.CacheProvider[requireFile]
+
+		if !ok {
+
+			log.Println("ERR2:" + requireFile)
+			//todo: error
+		}
+
+		if scope.State != FileStateLoaded {
+
+			log.Println("file not ready:" + scope.FilePath)
+		}
+	}
 }

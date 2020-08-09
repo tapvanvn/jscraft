@@ -3,7 +3,7 @@ package entity
 import (
 	"errors"
 
-	"com.newcontinent-team.jscraft/tokenize"
+	"newcontinent-team.com/jscraft/tokenize"
 )
 
 const (

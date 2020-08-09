@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"com.newcontinent-team.jscraft/tokenize"
+	"newcontinent-team.com/jscraft/tokenize"
 )
 
 //JSFunction infomation of a function

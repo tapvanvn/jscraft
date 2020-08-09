@@ -2,8 +2,9 @@ package entity
 
 import (
 	"log"
+	"strconv"
 
-	"com.newcontinent-team.jscraft/tokenize"
+	"newcontinent-team.com/jscraft/tokenize"
 )
 
 const (
@@ -43,4 +44,18 @@ func (scope *JSScopeFile) AddTemplate(name string, token *tokenize.BaseToken) {
 	scope.Templates[name] = token
 
 	//token.Children.Debug(0, js.TokenName)
+}
+
+//Debug print common debug
+func (scope *JSScopeFile) Debug() {
+	log.Println("----begin file debug ---")
+	log.Println(scope.FilePath)
+	defer log.Println("---end file debug ---")
+	for require, fscope := range scope.Requires {
+		log.Println("require: " + require + "\n\tstate:" + strconv.Itoa(fscope.State))
+		fscope.Debug()
+	}
+	for name := range scope.Templates {
+		log.Println("temp:" + name)
+	}
 }
