@@ -169,17 +169,17 @@ func (l *liner) finish() {
 	l.fortmatter.Content = l.s.content
 }
 
-func (f *JSFormatter) formatStream(l *liner, stream *tokenize.BaseTokenStream) {
+func (f *JSFormatter) formatStream(l *liner, stream *tokenize.TokenStream) {
 
-	stream.ResetToBegin()
+	iterator := stream.Iterator()
 
 	for {
-		if stream.EOS() {
+		if iterator.EOS() {
 
 			break
 		}
 
-		token := stream.ReadToken()
+		token := iterator.ReadToken()
 
 		if token.Type != 0 || len(token.Content) > 0 {
 
@@ -193,7 +193,7 @@ func (f *JSFormatter) formatStream(l *liner, stream *tokenize.BaseTokenStream) {
 }
 
 //Format export stream
-func (f *JSFormatter) Format(stream *tokenize.BaseTokenStream) {
+func (f *JSFormatter) Format(stream *tokenize.TokenStream) {
 
 	l := liner{fortmatter: f}
 

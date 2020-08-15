@@ -28,7 +28,7 @@ type JSBuilder struct {
 
 	cacheBuiltFile []string
 
-	HighContextStream tokenize.BaseTokenStream
+	HighContextStream tokenize.TokenStream
 
 	fileScope *JSScopeFile
 
@@ -92,9 +92,14 @@ func (builder *JSBuilder) process(fileScope *JSScopeFile, patchContext *PatchCon
 
 		return
 	}
+
+	fmt.Printf(" processing file %s\n\n", fileScope.FilePath)
+
+	//debug.PrintStack()
+
 	found := false
 
-	stream := tokenize.BaseTokenStream{}
+	stream := tokenize.TokenStream{}
 
 	for _, builtFile := range builder.cacheBuiltFile {
 
@@ -110,8 +115,13 @@ func (builder *JSBuilder) process(fileScope *JSScopeFile, patchContext *PatchCon
 
 		builder.cacheBuiltFile = append(builder.cacheBuiltFile, fileScope.FilePath)
 
+		fmt.Printf(" build file %s\n\n", fileScope.FilePath)
+
 		//fileScope.Stream.Debug(0, js.TokenName)
-		builder.processStream(&fileScope.Stream, &stream, patchContext)
+
+		iterator := fileScope.Stream.Iterator()
+
+		builder.processStream(&iterator, &stream, patchContext)
 
 		formatter := JSFormatter{}
 
@@ -126,22 +136,22 @@ func (builder *JSBuilder) process(fileScope *JSScopeFile, patchContext *PatchCon
 	}
 }
 
-func (builder *JSBuilder) processStream(stream *tokenize.BaseTokenStream, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processStream(iterator *tokenize.TokenStreamIterator, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
-	stream.ResetToBegin()
+	iterator.ResetToBegin()
 
 	for {
-		if stream.EOS() {
+		if iterator.EOS() {
 
 			break
 		}
-		token := stream.ReadToken()
+		token := iterator.ReadToken()
 
 		builder.processToken(token, outStream, patchContext)
 	}
 }
 
-func (builder *JSBuilder) processToken(token *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processToken(token *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	switch token.Type {
 
@@ -239,7 +249,8 @@ func (builder *JSBuilder) processToken(token *tokenize.BaseToken, outStream *tok
 
 		if builder.context.IsDebug {
 
-			builder.processStream(&token.Children, outStream, patchContext)
+			iterator := token.Children.Iterator()
+			builder.processStream(&iterator, outStream, patchContext)
 		}
 	case js.TokenJSRightArrow:
 		//todo: fix this later
@@ -252,7 +263,7 @@ func (builder *JSBuilder) processToken(token *tokenize.BaseToken, outStream *tok
 	}
 }
 
-func (builder *JSBuilder) processFunction(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processFunction(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	jsfunc := GetJSFunction(currToken)
 
@@ -294,7 +305,7 @@ func (builder *JSBuilder) processFunction(currToken *tokenize.BaseToken, outStre
 	}
 }
 
-func (builder *JSBuilder) processFor(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processFor(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	jsfor := GetJSFor(currToken)
 
@@ -322,7 +333,7 @@ func (builder *JSBuilder) processFor(currToken *tokenize.BaseToken, outStream *t
 	}
 }
 
-func (builder *JSBuilder) processBlock(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processBlock(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	if currToken.Type == js.TokenJSBlock {
 
@@ -330,7 +341,9 @@ func (builder *JSBuilder) processBlock(currToken *tokenize.BaseToken, outStream 
 
 		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSScopeBegin})
 
-		builder.processStream(&currToken.Children, outStream, patchContext)
+		iterator := currToken.Children.Iterator()
+
+		builder.processStream(&iterator, outStream, patchContext)
 
 		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSScopeEnd})
 
@@ -338,31 +351,35 @@ func (builder *JSBuilder) processBlock(currToken *tokenize.BaseToken, outStream 
 	}
 }
 
-func (builder *JSBuilder) processBracket(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processBracket(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	if currToken.Type == js.TokenJSBracket {
 
 		outStream.AddTokenFromString(js.TokenJSOperator, "(")
 
-		builder.processStream(&currToken.Children, outStream, patchContext)
+		iterator := currToken.Children.Iterator()
+
+		builder.processStream(&iterator, outStream, patchContext)
 
 		outStream.AddTokenFromString(js.TokenJSOperator, ")")
 	}
 }
 
-func (builder *JSBuilder) processBracketSquare(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processBracketSquare(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	if currToken.Type == js.TokenJSBracketSquare {
 
 		outStream.AddTokenFromString(js.TokenJSOperator, "[")
 
-		builder.processStream(&currToken.Children, outStream, patchContext)
+		iterator := currToken.Children.Iterator()
+
+		builder.processStream(&iterator, outStream, patchContext)
 
 		outStream.AddTokenFromString(js.TokenJSOperator, "]")
 	}
 }
 
-func (builder *JSBuilder) processString(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processString(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	if currToken.Type == js.TokenJSString {
 
@@ -370,7 +387,7 @@ func (builder *JSBuilder) processString(currToken *tokenize.BaseToken, outStream
 	}
 }
 
-func (builder *JSBuilder) processRegex(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processRegex(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	if currToken.Type == js.TokenJSRegex {
 
@@ -378,13 +395,13 @@ func (builder *JSBuilder) processRegex(currToken *tokenize.BaseToken, outStream 
 	}
 }
 
-func (builder *JSBuilder) processIf(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processIf(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	if currToken.Type == js.TokenJSIf {
 
-		currToken.Children.ResetToBegin()
+		iterator := currToken.Children.Iterator()
 
-		firstToken := currToken.Children.GetToken()
+		firstToken := iterator.GetToken()
 
 		if firstToken == nil {
 			//todo: error
@@ -395,7 +412,9 @@ func (builder *JSBuilder) processIf(currToken *tokenize.BaseToken, outStream *to
 
 		outStream.AddTokenFromString(js.TokenJSWord, "if")
 
-		builder.processStream(&currToken.Children, outStream, patchContext)
+		iterator.ResetToBegin()
+
+		builder.processStream(&iterator, outStream, patchContext)
 
 		if isNeedStrongBreak {
 
@@ -408,13 +427,13 @@ func (builder *JSBuilder) processIf(currToken *tokenize.BaseToken, outStream *to
 	}
 }
 
-func (builder *JSBuilder) processElseIf(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processElseIf(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	if currToken.Type == js.TokenJSElseIf {
 
-		currToken.Children.ResetToBegin()
+		iterator := currToken.Children.Iterator()
 
-		firstToken := currToken.Children.GetToken()
+		firstToken := iterator.GetToken()
 
 		if firstToken == nil {
 			//todo: error
@@ -425,7 +444,9 @@ func (builder *JSBuilder) processElseIf(currToken *tokenize.BaseToken, outStream
 
 		outStream.AddTokenFromString(js.TokenJSWord, "else if")
 
-		builder.processStream(&currToken.Children, outStream, patchContext)
+		iterator.ResetToBegin()
+
+		builder.processStream(&iterator, outStream, patchContext)
 
 		if isNeedStrongBreak {
 
@@ -438,13 +459,13 @@ func (builder *JSBuilder) processElseIf(currToken *tokenize.BaseToken, outStream
 	}
 }
 
-func (builder *JSBuilder) processElse(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processElse(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	if currToken.Type == js.TokenJSElse {
 
-		currToken.Children.ResetToBegin()
+		iterator := currToken.Children.Iterator()
 
-		firstToken := currToken.Children.GetToken()
+		firstToken := iterator.GetToken()
 
 		if firstToken == nil {
 			//todo: error
@@ -455,7 +476,9 @@ func (builder *JSBuilder) processElse(currToken *tokenize.BaseToken, outStream *
 
 		outStream.AddTokenFromString(js.TokenJSWord, "else")
 
-		builder.processStream(&currToken.Children, outStream, patchContext)
+		iterator.ResetToBegin()
+
+		builder.processStream(&iterator, outStream, patchContext)
 
 		if isNeedStrongBreak {
 
@@ -468,7 +491,7 @@ func (builder *JSBuilder) processElse(currToken *tokenize.BaseToken, outStream *
 	}
 }
 
-func (builder *JSBuilder) processWhile(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processWhile(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	jswhile := GetJSWhile(currToken)
 
@@ -501,7 +524,7 @@ func (builder *JSBuilder) processWhile(currToken *tokenize.BaseToken, outStream 
 	}
 }
 
-func (builder *JSBuilder) processDo(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processDo(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	jsdo := GetJSDo(currToken)
 
@@ -539,7 +562,7 @@ func (builder *JSBuilder) processDo(currToken *tokenize.BaseToken, outStream *to
 	}
 }
 
-func (builder *JSBuilder) processSwitch(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processSwitch(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	jsswitch := GetJSSwitch(currToken)
 
@@ -563,17 +586,18 @@ func (builder *JSBuilder) processSwitch(currToken *tokenize.BaseToken, outStream
 	}
 }
 
-func (builder *JSBuilder) processPhrase(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processPhrase(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
-	currToken.Children.ResetToBegin()
+	iterator := currToken.Children.Iterator()
 
 	for {
-		if currToken.Children.EOS() {
+
+		if iterator.EOS() {
 
 			break
 		}
 
-		token := currToken.Children.ReadToken()
+		token := iterator.ReadToken()
 
 		builder.processToken(token, outStream, patchContext)
 	}
@@ -581,7 +605,7 @@ func (builder *JSBuilder) processPhrase(currToken *tokenize.BaseToken, outStream
 	outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSPhraseBreak})
 }
 
-func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	jscraft := GetJSCraft(currToken)
 
@@ -596,10 +620,13 @@ func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken, outStream 
 			path, err := builder.context.GetPathForURI(requireURI)
 
 			if err != nil {
-				log.Println("jscraft require error" + err.Error())
+				fmt.Println("jscraft require error" + err.Error())
 				return
 			}
+
 			scopeFile := builder.context.RequireJSFile(path)
+
+			//fmt.Printf("require file: %s \n\t==>%s\n", builder.fileScope.FilePath, scopeFile.FilePath)
 
 			builder.process(scopeFile, patchContext)
 
@@ -639,9 +666,9 @@ func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken, outStream 
 
 			if templateToken == nil {
 
-				builder.builderContext.Debug()
-				builder.builderContext.Context.DebugDependence(builder.builderContext.FileScope)
-				builder.builderContext.FileScope.Debug()
+				//builder.builderContext.Debug()
+				//builder.builderContext.Context.DebugDependence(builder.builderContext.FileScope)
+				//builder.builderContext.FileScope.Debug()
 				//patchContext.Debug()
 				//patchContext.Context.Debug()
 				log.Fatal("syntax error :" + templateName)
@@ -654,9 +681,9 @@ func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken, outStream 
 
 			jscraft.GetBuildBlockObject(buildPatchContext)
 
-			builder.processStream(&templateToken.Children, outStream, buildPatchContext)
+			iterator := templateToken.Children.Iterator()
 
-			fmt.Println("build :" + templateName + ":" + templateToken.Content)
+			builder.processStream(&iterator, outStream, buildPatchContext)
 
 			//templateToken.Children.Debug(0, js.TokenName)
 			break
@@ -668,11 +695,13 @@ func (builder *JSBuilder) processCraft(currToken *tokenize.BaseToken, outStream 
 	}
 }
 
-func (builder *JSBuilder) processPatch(currToken *tokenize.BaseToken, outStream *tokenize.BaseTokenStream, patchContext *PatchContext) {
+func (builder *JSBuilder) processPatch(currToken *tokenize.BaseToken, outStream *tokenize.TokenStream, patchContext *PatchContext) {
 
 	if currToken.Type == js.TokenJSPatchStream {
 
-		builder.processStream(&currToken.Children, outStream, patchContext)
+		iterator := currToken.Children.Iterator()
+
+		builder.processStream(&iterator, outStream, patchContext)
 
 	} else {
 

@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"log"
+	"fmt"
 
 	"newcontinent-team.com/jscraft/tokenize"
 )
@@ -20,6 +20,7 @@ type BuilderContext struct {
 func (ctxBuild *BuilderContext) Init(jsScopeFile *JSScopeFile, compileContext *CompileContext) {
 
 	ctxBuild.ID = __BuildContextID
+
 	__BuildContextID++
 
 	ctxBuild.Context = compileContext
@@ -49,10 +50,10 @@ func (ctxBuild *BuilderContext) GetTemplate(name string) *tokenize.BaseToken {
 //Debug debug
 func (ctxBuild *BuilderContext) Debug() {
 
-	log.Println("---begin ctxBuild---")
-	log.Println(ctxBuild.FileScope.FilePath)
+	fmt.Println("---begin ctxBuild---")
+	fmt.Println(ctxBuild.FileScope.FilePath)
 	for name := range ctxBuild.Templates {
-		log.Println("temp:" + name)
+		fmt.Println("temp:" + name)
 	}
-	log.Println("---end ctxBuild---")
+	fmt.Println("---end ctxBuild---")
 }

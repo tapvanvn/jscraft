@@ -5,11 +5,9 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
 
 	"newcontinent-team.com/jscraft/entity"
@@ -26,6 +24,7 @@ var (
 	hasError        bool                  = false
 	compileContext  entity.CompileContext
 	requireProvider chan *entity.JSScopeFile = make(chan *entity.JSScopeFile)
+	requireCheck    chan *entity.CheckReady  = make(chan *entity.CheckReady)
 )
 
 func main() {
@@ -97,11 +96,13 @@ func main() {
 	compileContext.LayoutDir = layoutDir
 	compileContext.WorkDir = workDir
 	compileContext.TemplateDir = templateDir
-	compileContext.CacheProvider = make(map[string]*entity.JSScopeFile)
+
 	compileContext.RequireProvider = &requireProvider
 	compileContext.IsDebug = isDebug
 
 	go processRequire()
+
+	go processRequireCheck()
 
 	var layout entity.Layout
 	parseErr := json.Unmarshal(layoutData, &layout)
@@ -143,11 +144,7 @@ func main() {
 
 func processRequire() {
 
-	var jsmeaning entity.JSMeaning
-
-	var jsmeaningHightContext entity.JSMeaningHighContext
-
-	var uriMeaning entity.URIMeaning
+	var require_id = 0
 
 	for {
 		if hasError {
@@ -160,7 +157,17 @@ func processRequire() {
 
 			addBegin()
 
-			log.Println("\nprocess require : \n\t" + jsScopeFile.FilePath + "\n")
+			//var current_require_id = require_id
+
+			require_id++
+
+			var jsmeaning entity.JSMeaning
+
+			var jsmeaningHightContext entity.JSMeaningHighContext
+
+			var uriMeaning entity.URIMeaning
+
+			//fmt.Printf("\nprocess require %d : \n\t %s \n", current_require_id, jsScopeFile.FilePath)
 
 			jsScopeFile.State = entity.FileStateLoading
 
@@ -193,7 +200,7 @@ func processRequire() {
 
 			jsmeaning.Init(string(data), &compileContext)
 
-			rawStream := tokenize.BaseTokenStream{}
+			rawStream := tokenize.TokenStream{}
 
 			for {
 				token := jsmeaning.GetNextMeaningToken()
@@ -204,7 +211,7 @@ func processRequire() {
 				rawStream.AddToken(*token)
 			}
 
-			fmt.Printf("\ttoken:%d\n", rawStream.Length())
+			//fmt.Printf("\ttoken:%d\n", rawStream.Length())
 
 			jsmeaningHightContext.Init(rawStream, &compileContext)
 
@@ -220,7 +227,7 @@ func processRequire() {
 					jscraft := entity.GetJSCraft(token)
 
 					if jscraft != nil {
-
+						//fmt.Printf("begin jscraft %s \n", jscraft.FunctionName)
 						if jscraft.FunctionName == "require" {
 
 							requireURI := jscraft.Stream.ConcatStringContent()
@@ -231,15 +238,33 @@ func processRequire() {
 							}
 							requirePath := compileContext.GetPathForNamespace(uriMeaning.Namespace) + "/" + uriMeaning.RelativePath
 
-							jsScopeFile.Requires[requirePath] = compileContext.RequireJSFile(requirePath)
+							//fmt.Printf("require %s\n", requirePath)
+
+							scopeRequire := compileContext.RequireJSFile(requirePath)
+
+							//fmt.Printf("add require to:%s \n", jsScopeFile.FilePath)
+
+							checkReady := jsScopeFile.AddRequire(requirePath, scopeRequire)
+
+							if checkReady != nil {
+
+								go addCheckReady(checkReady)
+							}
+
+							//fmt.Println("after require")
 
 						} else if jscraft.FunctionName == "template" {
 
 							templateName := jscraft.GetTemplateName()
 
-							jsScopeFile.AddTemplate(templateName, jscraft.GetTemplateToken())
+							templateToken := jscraft.GetTemplateToken()
+							fmt.Printf("\nadd template 1: %s\n", templateName)
+							jsScopeFile.AddTemplate(templateName, templateToken)
+							fmt.Printf("\nfinish add template 1\n")
 						}
+						//fmt.Printf("end jscraft \n")
 					}
+
 				} else if token.Type == js.TokenJSFunction {
 
 					jsfunc := entity.GetJSFunction(token)
@@ -259,13 +284,43 @@ func processRequire() {
 				jsScopeFile.Stream.AddToken(*token)
 			}
 
-			//fmt.Println("\tloaded")
+			//fmt.Printf("\tloaded : %d \n", current_require_id)
 
 			jsScopeFile.State = entity.FileStateLoaded
 
 			go addDone()
 		}
 	}
+}
+
+func processRequireCheck() {
+
+	for {
+		if hasError {
+
+			return
+		}
+		select {
+
+		case checkReady := <-requireCheck:
+
+			addBegin()
+
+			//fmt.Printf("check file: %s %d\n", checkReady.FileCheck.FilePath, checkReady.FileCheck.State)
+
+			if checkReady.FileCheck.IsReady() {
+				checkReady.IsReady = true
+				//fmt.Printf("file ready: %s\n", checkReady.FileCheck.FilePath)
+			} else {
+				go addCheckReady(checkReady)
+			}
+			go addDone()
+		}
+	}
+}
+
+func addCheckReady(checkReady *entity.CheckReady) {
+	requireCheck <- checkReady
 }
 
 func addStep(step entity.BuildStep) {
@@ -283,8 +338,6 @@ func addDone() {
 }
 
 func work() {
-	var id = workID
-	workID++
 
 	for {
 		if hasError {
@@ -295,16 +348,24 @@ func work() {
 		select {
 
 		case step := <-steps:
-			fmt.Println(strconv.Itoa(id) + ":from:" + step.From)
+			var id = workID
+			workID++
+
+			fmt.Printf("\nbegin compile %d: from %s\n", id, step.From)
+
 			var compiler entity.Compiler
+
 			compiler.Init(step.Target, step.From, &compileContext)
 
 			err := compiler.CompileTarget()
+
+			fmt.Printf("\nfinish compile: %d\n\t to: %s\n", id, step.Target)
 
 			if err != nil {
 
 				fmt.Println(err.Error())
 			}
+
 			addDone()
 
 		default:

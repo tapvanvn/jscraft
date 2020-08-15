@@ -10,7 +10,9 @@ import (
 
 //JSMeaning JSMeaning
 type JSMeaning struct {
-	Stream tokenize.BaseTokenStream
+	Stream tokenize.TokenStream
+
+	Iterator *tokenize.TokenStreamIterator
 
 	Context *CompileContext
 }
@@ -68,6 +70,10 @@ func (meaning *JSMeaning) Init(content string, context *CompileContext) error {
 		}
 		meaning.Stream.AddTokenByContent(curTokenRunes, curType)
 
+		iterator := meaning.Stream.Iterator()
+
+		meaning.Iterator = &iterator
+
 		return nil
 	}
 	return errors.New("bad content")
@@ -78,12 +84,12 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 
 	var token *tokenize.BaseToken = nil
 
-	if meaning.Stream.EOS() {
+	if meaning.Iterator.EOS() {
 
 		return nil
 	}
 
-	token = meaning.Stream.ReadToken()
+	token = meaning.Iterator.ReadToken()
 
 	lower := strings.ToLower(token.GetContent())
 
@@ -119,11 +125,11 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 
 	} else if lower == "=" {
 
-		nextToken := meaning.Stream.GetToken()
+		nextToken := meaning.Iterator.GetToken()
 		if nextToken != nil {
 			if nextToken.Content == ">" {
 				tmpToken := tokenize.BaseToken{Content: "=>", Type: js.TokenJSRightArrow}
-				_ = meaning.Stream.ReadToken()
+				_ = meaning.Iterator.ReadToken()
 				return &tmpToken
 			}
 		}
@@ -132,7 +138,7 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 
 	} else if lower == "/" {
 
-		nextToken := meaning.Stream.GetToken()
+		nextToken := meaning.Iterator.GetToken()
 
 		if nextToken != nil {
 
@@ -140,7 +146,7 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 
 				tmpToken := tokenize.BaseToken{Content: "//", Type: js.TokenJSLineComment}
 
-				_ = meaning.Stream.ReadToken()
+				_ = meaning.Iterator.ReadToken()
 
 				meaning.continueReadLineComment(&tmpToken)
 
@@ -150,7 +156,7 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 
 				tmpToken := tokenize.BaseToken{Content: "/*", Type: js.TokenJSBlockComment}
 
-				_ = meaning.Stream.ReadToken()
+				_ = meaning.Iterator.ReadToken()
 
 				meaning.continueReadBlockComment(&tmpToken)
 
@@ -183,9 +189,9 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 
 func (meaning *JSMeaning) testRegex() bool {
 
-	var i = meaning.Stream.Offset + 1
+	var i = meaning.Iterator.Offset + 1
 	for {
-		tmpToken := meaning.Stream.GetTokenAt(i)
+		tmpToken := meaning.Iterator.GetTokenAt(i)
 
 		if tmpToken == nil {
 			return false
@@ -193,7 +199,7 @@ func (meaning *JSMeaning) testRegex() bool {
 
 		if tmpToken.Content == "/" {
 
-			testToken := meaning.Stream.GetTokenAt(i + 1)
+			testToken := meaning.Iterator.GetTokenAt(i + 1)
 			if testToken.Content == "i" || testToken.Content == "m" || testToken.Content == "g" {
 				return true
 
@@ -209,7 +215,7 @@ func (meaning *JSMeaning) testRegex() bool {
 func (meaning *JSMeaning) continueReadBracket(currToken *tokenize.BaseToken) {
 
 	for {
-		if meaning.Stream.EOS() {
+		if meaning.Iterator.EOS() {
 
 			break
 		}
@@ -231,7 +237,7 @@ func (meaning *JSMeaning) continueReadBracket(currToken *tokenize.BaseToken) {
 func (meaning *JSMeaning) continueReadBracketSquare(currToken *tokenize.BaseToken) {
 
 	for {
-		if meaning.Stream.EOS() {
+		if meaning.Iterator.EOS() {
 
 			break
 		}
@@ -253,7 +259,7 @@ func (meaning *JSMeaning) continueReadBracketSquare(currToken *tokenize.BaseToke
 func (meaning *JSMeaning) continueReadBlock(currToken *tokenize.BaseToken) {
 
 	for {
-		if meaning.Stream.EOS() {
+		if meaning.Iterator.EOS() {
 
 			break
 		}
@@ -279,11 +285,11 @@ func (meaning *JSMeaning) continueReadString(currToken *tokenize.BaseToken) {
 	curContent := currToken.GetContent()
 
 	for {
-		if meaning.Stream.EOS() {
+		if meaning.Iterator.EOS() {
 
 			break
 		}
-		tmpToken := meaning.Stream.ReadToken()
+		tmpToken := meaning.Iterator.ReadToken()
 
 		tmpContent := tmpToken.GetContent()
 
@@ -317,12 +323,12 @@ func (meaning *JSMeaning) continueReadString(currToken *tokenize.BaseToken) {
 func (meaning *JSMeaning) continueReadLineComment(currToken *tokenize.BaseToken) {
 
 	for {
-		if meaning.Stream.EOS() {
+		if meaning.Iterator.EOS() {
 
 			break
 		}
 
-		tmpToken := meaning.Stream.ReadToken()
+		tmpToken := meaning.Iterator.ReadToken()
 
 		if tmpToken.Content == "\n" || tmpToken.Content == "\r" {
 
@@ -338,19 +344,19 @@ func (meaning *JSMeaning) continueReadLineComment(currToken *tokenize.BaseToken)
 func (meaning *JSMeaning) continueReadBlockComment(currToken *tokenize.BaseToken) {
 
 	for {
-		if meaning.Stream.EOS() {
+		if meaning.Iterator.EOS() {
 
 			break
 		}
-		tmpToken := meaning.Stream.ReadToken()
+		tmpToken := meaning.Iterator.ReadToken()
 
 		if tmpToken.Content == "*" {
 
-			nextToken := meaning.Stream.GetToken()
+			nextToken := meaning.Iterator.GetToken()
 
 			if nextToken != nil && nextToken.Content == "/" {
 
-				_ = meaning.Stream.ReadToken()
+				_ = meaning.Iterator.ReadToken()
 
 				return
 			}
@@ -368,12 +374,12 @@ func (meaning *JSMeaning) continueReadRegex(currToken *tokenize.BaseToken) {
 	var gotClose bool = false
 
 	for {
-		if meaning.Stream.EOS() {
+		if meaning.Iterator.EOS() {
 
 			break
 		}
 
-		tmpToken := meaning.Stream.GetToken()
+		tmpToken := meaning.Iterator.GetToken()
 
 		tmpContent := tmpToken.GetContent()
 
@@ -383,7 +389,7 @@ func (meaning *JSMeaning) continueReadRegex(currToken *tokenize.BaseToken) {
 
 			currToken.Children.AddToken(*tmpToken)
 
-			_ = meaning.Stream.ReadToken()
+			_ = meaning.Iterator.ReadToken()
 
 		} else if tmpContent == "/" {
 
@@ -398,7 +404,7 @@ func (meaning *JSMeaning) continueReadRegex(currToken *tokenize.BaseToken) {
 
 			currToken.Children.AddToken(*tmpToken)
 
-			_ = meaning.Stream.ReadToken()
+			_ = meaning.Iterator.ReadToken()
 
 		} else {
 
@@ -408,7 +414,7 @@ func (meaning *JSMeaning) continueReadRegex(currToken *tokenize.BaseToken) {
 
 			} else {
 
-				_ = meaning.Stream.ReadToken()
+				_ = meaning.Iterator.ReadToken()
 
 				specialCharacter = false
 

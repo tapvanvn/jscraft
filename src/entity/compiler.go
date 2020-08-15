@@ -2,8 +2,8 @@ package entity
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -71,7 +71,8 @@ func (compiler *Compiler) CompileTarget() error {
 		jsScopeFile := compiler.Context.RequireJSFile(compiler.From)
 
 		for {
-			if compiler.Context.IsReadyFor(jsScopeFile) {
+
+			if jsScopeFile.IsReady() {
 
 				var builder JSBuilder
 
@@ -89,11 +90,12 @@ func (compiler *Compiler) CompileTarget() error {
 					}
 				} else {
 
-					fmt.Println("some error:" + builder.Error.Error())
+					log.Println("some error:" + builder.Error.Error())
 				}
 				break
 			}
-			time.Sleep(time.Millisecond * 200)
+
+			time.Sleep(time.Millisecond * 100)
 		}
 
 	default:
@@ -124,19 +126,5 @@ func (compiler *Compiler) CompileTarget() error {
 		}
 	}
 
-	/*
-		meaning.Stream.ResetToBegin()
-		jsStream tokenize.BaseTokenStream
-
-		for {
-			if meaning.Stream.EOS() {
-				break
-			}
-			token := meaning.Stream.GetNextMeaningToken()
-			jsStream.AddToken(token)
-		}
-	*/
-
-	//fmt.Println("from:" + ext)
 	return nil
 }

@@ -7,7 +7,7 @@ const (
 type BaseToken struct {
 	Type     int
 	Content  string
-	Children BaseTokenStream
+	Children TokenStream
 }
 
 func (token *BaseToken) GetType() int {
@@ -18,7 +18,7 @@ func (token *BaseToken) GetContent() string {
 	return token.Content
 }
 
-func (token *BaseToken) GetChildren() *BaseTokenStream {
+func (token *BaseToken) GetChildren() *TokenStream {
 	return &token.Children
 }
 

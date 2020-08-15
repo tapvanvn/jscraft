@@ -1,8 +1,8 @@
 package entity
 
 import (
-	"fmt"
 	"log"
+	"strconv"
 
 	"newcontinent-team.com/jscraft/tokenize"
 	"newcontinent-team.com/jscraft/tokenize/js"
@@ -12,7 +12,7 @@ import (
 type JSCraft struct {
 	FunctionName string
 
-	Stream *tokenize.BaseTokenStream
+	Stream *tokenize.TokenStream
 }
 
 //GetTemplateName get template name of jscraft template function
@@ -73,25 +73,23 @@ func (jscraft *JSCraft) GetBuildBlockObject(patchContext *PatchContext) {
 
 		if secondToken.Type == js.TokenJSBlock {
 
-			secondToken.Children.ResetToBegin()
-			fmt.Println("---------")
-			//secondToken.Children.Debug(0, js.TokenName)
+			iterator := secondToken.Children.Iterator()
+
 			for {
 
-				if secondToken.Children.EOS() {
+				if iterator.EOS() {
 
 					break
 				}
 
-				token := secondToken.Children.ReadToken()
+				token := iterator.ReadToken()
 
 				if token == nil {
 					break
 				}
 
 				if token.Type != js.TokenJSString && token.Type != js.TokenJSWord {
-					//error
-					fmt.Println("continue:" + token.Content)
+
 					continue
 				}
 
@@ -106,16 +104,20 @@ func (jscraft *JSCraft) GetBuildBlockObject(patchContext *PatchContext) {
 					patchName = token.Content
 				}
 				if len(patchName) == 0 {
+
 					continue
 				}
 
-				fmt.Println("pactName:" + patchName)
+				_ = iterator.ReadToken()
 
-				_ = secondToken.Children.ReadToken()
+				contentToken := iterator.ReadToken()
 
-				contentToken := secondToken.Children.ReadToken()
+				if contentToken == nil {
 
-				fmt.Println(js.TokenName(contentToken.Type))
+					log.Fatalf("Syntax Error \n")
+				}
+
+				//fmt.Println(js.TokenName(contentToken.Type))
 
 				if contentToken.Type == js.TokenJSFunction || contentToken.Type == js.TokenJSFunctionLambda {
 
@@ -123,7 +125,7 @@ func (jscraft *JSCraft) GetBuildBlockObject(patchContext *PatchContext) {
 
 					if contentBuildFunc == nil {
 
-						log.Fatal("Syntax Error 1" + contentToken.Content)
+						log.Fatalf("Syntax Error : %d \n", strconv.Itoa(contentToken.Type))
 					}
 
 					patchStreamToken := tokenize.BaseToken{Type: js.TokenJSPatchStream, Children: contentBuildFunc.Body.Children}

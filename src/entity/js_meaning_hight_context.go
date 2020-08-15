@@ -10,7 +10,9 @@ import (
 
 //JSMeaningHighContext apply sentence patterns
 type JSMeaningHighContext struct {
-	Stream tokenize.BaseTokenStream
+	Stream tokenize.TokenStream
+
+	Iterator tokenize.TokenStreamIterator
 
 	Context *CompileContext
 }
@@ -18,11 +20,13 @@ type JSMeaningHighContext struct {
 var jscraftKeywords = ",require,conflict,fetch,template,build,"
 
 //Init init before using
-func (meaning *JSMeaningHighContext) Init(stream tokenize.BaseTokenStream, context *CompileContext) error {
+func (meaning *JSMeaningHighContext) Init(stream tokenize.TokenStream, context *CompileContext) error {
 
 	meaning.Context = context
 
 	meaning.Stream = stream
+
+	meaning.Iterator = stream.Iterator()
 
 	return nil
 }
@@ -43,12 +47,12 @@ func isIgnore(tokenType int) bool {
 func (meaning *JSMeaningHighContext) GetNextMeaningToken() *tokenize.BaseToken {
 
 	for {
-		if meaning.Stream.EOS() {
+		if meaning.Iterator.EOS() {
 
 			break
 		}
 		/*for {
-			nextToken := meaning.Stream.GetToken()
+			nextToken := meaning.Iterator.GetToken()
 
 			if nextToken == nil {
 
@@ -56,17 +60,17 @@ func (meaning *JSMeaningHighContext) GetNextMeaningToken() *tokenize.BaseToken {
 
 			} else if nextToken.Type == js.TokenJSPhraseBreak {
 
-				_ = meaning.Stream.ReadToken()
+				_ = meaning.Iterator.ReadToken()
 
 			} else {
 
 				break
 			}
 		}*/
-		//nextToken := meaning.Stream.GetToken()
+		//nextToken := meaning.Iterator.GetToken()
 		//fmt.Printf("%5d \033[1;36m%s\033[0m\n", nextToken.Type, nextToken.Content)
 
-		marks := meaning.Stream.FindPattern(js.Patterns, true, js.TokenJSPhraseBreak, isIgnore, js.TokenName)
+		marks := meaning.Iterator.FindPattern(js.Patterns, true, js.TokenJSPhraseBreak, isIgnore, js.TokenName)
 
 		if len(marks) > 0 {
 
@@ -81,11 +85,11 @@ func (meaning *JSMeaningHighContext) GetNextMeaningToken() *tokenize.BaseToken {
 					continue
 				}
 
-				childToken := meaning.Stream.GetMaskedToken(m, &patternMark.Ignores)
+				childToken := meaning.Iterator.GetMaskedToken(m, &patternMark.Ignores)
 
 				if childToken != nil && m.CanNested {
 
-					children := tokenize.BaseTokenStream{}
+					children := tokenize.TokenStream{}
 
 					subMeaning := JSMeaningHighContext{}
 
@@ -115,13 +119,13 @@ func (meaning *JSMeaningHighContext) GetNextMeaningToken() *tokenize.BaseToken {
 
 					fmt.Println("get token by mark fail")
 
-					meaning.Stream.DebugMark(0, &patternMark, &patternMark.Ignores, js.TokenName)
+					meaning.Iterator.DebugMark(0, &patternMark, &patternMark.Ignores, js.TokenName)
 
-					meaning.Stream.DebugMark(1, m, &patternMark.Ignores, js.TokenName)
+					meaning.Iterator.DebugMark(1, m, &patternMark.Ignores, js.TokenName)
 				}
 			}
 
-			meaning.Stream.Offset = patternMark.End
+			meaning.Iterator.Offset = patternMark.End
 
 			return &currToken
 
@@ -133,12 +137,12 @@ func (meaning *JSMeaningHighContext) GetNextMeaningToken() *tokenize.BaseToken {
 
 			//return &currToken
 
-			currToken := meaning.Stream.ReadToken()
+			currToken := meaning.Iterator.ReadToken()
 
 			if currToken.Type == js.TokenJSBlock ||
 				currToken.Type == js.TokenJSBracket {
 
-				children := tokenize.BaseTokenStream{}
+				children := tokenize.TokenStream{}
 
 				subMeaning := JSMeaningHighContext{}
 
@@ -168,7 +172,7 @@ func (meaning *JSMeaningHighContext) GetNextMeaningToken() *tokenize.BaseToken {
 func (meaning *JSMeaningHighContext) continueReadPhrase(currToken *tokenize.BaseToken) {
 
 	for {
-		if meaning.Stream.EOS() {
+		if meaning.Iterator.EOS() {
 
 			break
 		}
@@ -192,9 +196,9 @@ func GetJSCraft(craftToken *tokenize.BaseToken) *JSCraft {
 
 	jscraft := JSCraft{}
 
-	craftToken.Children.ResetToBegin()
+	iterator := craftToken.Children.Iterator()
 
-	firstToken := craftToken.Children.ReadToken()
+	firstToken := iterator.ReadToken()
 
 	if firstToken == nil || strings.Index(jscraftKeywords, ","+firstToken.Content+",") == -1 {
 
@@ -203,32 +207,32 @@ func GetJSCraft(craftToken *tokenize.BaseToken) *JSCraft {
 
 	jscraft.FunctionName = firstToken.Content
 
-	jscraft.Stream = &tokenize.BaseTokenStream{}
+	jscraft.Stream = &tokenize.TokenStream{}
 
-	secondToken := craftToken.Children.ReadToken()
+	secondToken := iterator.ReadToken()
 
 	if secondToken.Type != js.TokenJSBracket {
 
 		return nil
 	}
-	secondToken.Children.ResetToBegin()
+	iterator2 := secondToken.Children.Iterator()
 
 	if jscraft.FunctionName == "require" || jscraft.FunctionName == "fetch" {
 
-		stringToken := secondToken.Children.ReadToken()
+		stringToken := iterator2.ReadToken()
 
 		if stringToken == nil || stringToken.Type != js.TokenJSString {
 
 			return nil
 		}
-		stringToken.Children.ResetToBegin()
+		iterator3 := stringToken.Children.Iterator()
 
 		for {
-			if stringToken.Children.EOS() {
+			if iterator3.EOS() {
 
 				break
 			}
-			token := stringToken.Children.ReadToken()
+			token := iterator3.ReadToken()
 
 			jscraft.Stream.AddToken(*token)
 		}
@@ -236,11 +240,11 @@ func GetJSCraft(craftToken *tokenize.BaseToken) *JSCraft {
 
 		for {
 
-			if secondToken.Children.EOS() {
+			if iterator2.EOS() {
 
 				break
 			}
-			jscraft.Stream.AddToken(*secondToken.Children.ReadToken())
+			jscraft.Stream.AddToken(*iterator2.ReadToken())
 		}
 	}
 
@@ -256,9 +260,9 @@ func GetJSFunction(functionToken *tokenize.BaseToken) *JSFunction {
 	}
 	jsfunc := JSFunction{}
 
-	functionToken.Children.ResetToBegin()
+	iterator := functionToken.Children.Iterator()
 
-	firstToken := functionToken.Children.GetToken()
+	firstToken := iterator.GetToken()
 
 	if firstToken == nil {
 
@@ -269,10 +273,10 @@ func GetJSFunction(functionToken *tokenize.BaseToken) *JSFunction {
 
 		jsfunc.FunctionName = firstToken.Content
 
-		_ = functionToken.Children.ReadToken()
+		_ = iterator.ReadToken()
 	}
 
-	secondToken := functionToken.Children.ReadToken()
+	secondToken := iterator.ReadToken()
 
 	if secondToken == nil || secondToken.Type != js.TokenJSBracket {
 
@@ -280,7 +284,7 @@ func GetJSFunction(functionToken *tokenize.BaseToken) *JSFunction {
 	}
 	jsfunc.Params = *secondToken
 
-	thirdToken := functionToken.Children.ReadToken()
+	thirdToken := iterator.ReadToken()
 
 	if thirdToken == nil || thirdToken.Type != js.TokenJSBlock {
 
@@ -297,9 +301,9 @@ func GetJSFor(forToken *tokenize.BaseToken) *JSFor {
 
 	jsfor := JSFor{}
 
-	forToken.Children.ResetToBegin()
+	iterator := forToken.Children.Iterator()
 
-	firstToken := forToken.Children.ReadToken()
+	firstToken := iterator.ReadToken()
 
 	if firstToken.Type != js.TokenJSBracket {
 
@@ -307,7 +311,7 @@ func GetJSFor(forToken *tokenize.BaseToken) *JSFor {
 	}
 	jsfor.Declare = *firstToken
 
-	secondToken := forToken.Children.ReadToken()
+	secondToken := iterator.ReadToken()
 
 	if secondToken.Type != js.TokenJSBlock {
 
@@ -323,9 +327,9 @@ func GetJSWhile(whileToken *tokenize.BaseToken) *JSWhile {
 
 	jswhile := JSWhile{}
 
-	whileToken.Children.ResetToBegin()
+	iterator := whileToken.Children.Iterator()
 
-	firstToken := whileToken.Children.ReadToken()
+	firstToken := iterator.ReadToken()
 
 	if firstToken != nil && firstToken.Type != js.TokenJSBracket {
 
@@ -333,7 +337,7 @@ func GetJSWhile(whileToken *tokenize.BaseToken) *JSWhile {
 	}
 	jswhile.Condition = *firstToken
 
-	secondToken := whileToken.Children.GetToken()
+	secondToken := iterator.GetToken()
 
 	if secondToken == nil {
 		return nil
@@ -347,11 +351,11 @@ func GetJSWhile(whileToken *tokenize.BaseToken) *JSWhile {
 		jswhile.Body = tokenize.BaseToken{Type: js.TokenJSPhrase}
 
 		for {
-			if whileToken.Children.EOS() {
+			if iterator.EOS() {
 
 				break
 			}
-			jswhile.Body.Children.AddToken(*(whileToken.Children.ReadToken()))
+			jswhile.Body.Children.AddToken(*(iterator.ReadToken()))
 		}
 	}
 	return &jswhile
@@ -362,9 +366,9 @@ func GetJSDo(doToken *tokenize.BaseToken) *JSDo {
 
 	jsdo := JSDo{}
 
-	doToken.Children.ResetToBegin()
+	iterator := doToken.Children.Iterator()
 
-	firstToken := doToken.Children.GetToken()
+	firstToken := iterator.GetToken()
 
 	if firstToken == nil {
 		return nil
@@ -377,9 +381,9 @@ func GetJSDo(doToken *tokenize.BaseToken) *JSDo {
 
 	jsdo.Body = *firstToken
 
-	_ = doToken.Children.ReadToken()
+	_ = iterator.ReadToken()
 
-	secondToken := doToken.Children.GetToken()
+	secondToken := iterator.GetToken()
 
 	if secondToken == nil || secondToken.Type != js.TokenJSBracket {
 
@@ -395,9 +399,9 @@ func GetJSSwitch(switchToken *tokenize.BaseToken) *JSSwitch {
 
 	jsswitch := JSSwitch{}
 
-	switchToken.Children.ResetToBegin()
+	iterator := switchToken.Children.Iterator()
 
-	firstToken := switchToken.Children.GetToken()
+	firstToken := iterator.GetToken()
 
 	if firstToken == nil {
 
@@ -411,9 +415,9 @@ func GetJSSwitch(switchToken *tokenize.BaseToken) *JSSwitch {
 
 	jsswitch.Var = *firstToken
 
-	_ = switchToken.Children.ReadToken()
+	_ = iterator.ReadToken()
 
-	secondToken := switchToken.Children.GetToken()
+	secondToken := iterator.GetToken()
 
 	if secondToken == nil || secondToken.Type != js.TokenJSBlock {
 

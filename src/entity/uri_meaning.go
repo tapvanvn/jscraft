@@ -13,7 +13,8 @@ const (
 
 //URIMeaning meaning processing for target
 type URIMeaning struct {
-	Stream       tokenize.BaseTokenStream
+	Stream       tokenize.TokenStream
+	Iterator     tokenize.TokenStreamIterator
 	Namespace    string
 	RelativePath string
 }
@@ -85,7 +86,7 @@ func (meaning *URIMeaning) Init(uri string) error {
 			}
 		}
 		meaning.RelativePath = string(curTokenRunes)
-
+		meaning.Iterator = meaning.Stream.Iterator()
 		return nil
 	}
 	return errors.New("bad uri")
@@ -95,10 +96,10 @@ func (meaning *URIMeaning) Init(uri string) error {
 func (meaning *URIMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 
 	for {
-		if meaning.Stream.EOS() {
+		if meaning.Iterator.EOS() {
 			break
 		}
-		_ = meaning.Stream.ReadToken()
+		_ = meaning.Iterator.ReadToken()
 	}
 	return nil
 }

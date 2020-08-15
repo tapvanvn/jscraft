@@ -5,17 +5,28 @@ import (
 	"strings"
 )
 
-//BaseTokenStream token stream
-type BaseTokenStream struct {
+//TokenStream token stream
+type TokenStream struct {
 	Tokens []BaseToken
+	//Offset int
+	//Level  int
+}
+
+//TokenStreamIterator struct use to access token stream
+type TokenStreamIterator struct {
+	Stream *TokenStream
 	Offset int
 	Level  int
 }
 
-//Tokenize tokenize a string
-func (stream *BaseTokenStream) Tokenize(content string) {
+//Iterator make iterator of stream
+func (stream *TokenStream) Iterator() TokenStreamIterator {
 
-	stream.Offset = 0
+	return TokenStreamIterator{Stream: stream, Offset: 0, Level: 0}
+}
+
+//Tokenize tokenize a string
+func (stream *TokenStream) Tokenize(content string) {
 
 	runes := []rune(content)
 
@@ -28,13 +39,13 @@ func (stream *BaseTokenStream) Tokenize(content string) {
 }
 
 //AddToken add token to stream
-func (stream *BaseTokenStream) AddToken(token BaseToken) {
+func (stream *TokenStream) AddToken(token BaseToken) {
 
 	stream.Tokens = append(stream.Tokens, token)
 }
 
 //AddTokenFromString split string to character and add each character as a token with type is providing type.
-func (stream *BaseTokenStream) AddTokenFromString(tokenType int, str string) {
+func (stream *TokenStream) AddTokenFromString(tokenType int, str string) {
 
 	for _, r := range []rune(str) {
 
@@ -43,16 +54,13 @@ func (stream *BaseTokenStream) AddTokenFromString(tokenType int, str string) {
 }
 
 //AddTokenByContent add token
-func (stream *BaseTokenStream) AddTokenByContent(content []rune, tokenType int) {
+func (stream *TokenStream) AddTokenByContent(content []rune, tokenType int) {
 
 	stream.Tokens = append(stream.Tokens, BaseToken{Content: string(content), Type: tokenType})
 }
 
 //Debug print debug tree
-func (stream *BaseTokenStream) Debug(level int, fnName func(int) string) {
-
-	lastOffset := stream.Offset
-	stream.ResetToBegin()
+func (stream *TokenStream) Debug(level int, fnName func(int) string) {
 
 	for _, token := range stream.Tokens {
 
@@ -99,23 +107,22 @@ func (stream *BaseTokenStream) Debug(level int, fnName func(int) string) {
 		}
 		token.Children.Debug(level+1, fnName)
 	}
-	stream.Offset = lastOffset
 }
 
 //DebugMark debug mark
-func (stream *BaseTokenStream) DebugMark(level int, mark *Mark, ignores *[]int, fnName func(int) string) {
+func (iterator *TokenStreamIterator) DebugMark(level int, mark *Mark, ignores *[]int, fnName func(int) string) {
 
 	length := mark.End - mark.Begin
 
-	iterator := 0
+	iter := 0
 
 	for {
-		if length <= 0 || stream.EOS() {
+		if length <= 0 || iterator.EOS() {
 			break
 		}
 
-		token := stream.GetTokenAt(mark.Begin + iterator)
-		fmt.Printf("%s", ColorOffset(mark.Begin+iterator))
+		token := iterator.GetTokenAt(mark.Begin + iter)
+		fmt.Printf("%s", ColorOffset(mark.Begin+iter))
 		if token != nil {
 
 			for i := 0; i <= level; i++ {
@@ -130,7 +137,7 @@ func (stream *BaseTokenStream) DebugMark(level int, mark *Mark, ignores *[]int, 
 				}
 			}
 
-			if !isIgnoreInMark(mark.Begin+iterator, ignores) {
+			if !isIgnoreInMark(mark.Begin+iter, ignores) {
 
 				trimContent := strings.Trim(token.Content, " \n\r")
 
@@ -159,36 +166,36 @@ func (stream *BaseTokenStream) DebugMark(level int, mark *Mark, ignores *[]int, 
 
 		length--
 
-		iterator++
+		iter++
 	}
 }
 
 //GetToken read token but not move pointer
-func (stream *BaseTokenStream) GetToken() *BaseToken {
+func (iterator *TokenStreamIterator) GetToken() *BaseToken {
 
-	if stream.Offset <= len(stream.Tokens)-1 {
+	if iterator.Offset <= len(iterator.Stream.Tokens)-1 {
 
-		off := stream.Offset
+		off := iterator.Offset
 
-		return &stream.Tokens[off]
+		return &iterator.Stream.Tokens[off]
 	}
 	return nil
 }
 
 //GetTokenIter get token at (offset + iterator) position
-func (stream *BaseTokenStream) GetTokenIter(iterator int) *BaseToken {
+func (iterator *TokenStreamIterator) GetTokenIter(iter int) *BaseToken {
 
-	if stream.Offset+iterator <= len(stream.Tokens)-1 {
+	if iterator.Offset+iter <= len(iterator.Stream.Tokens)-1 {
 
-		off := stream.Offset + iterator
+		off := iterator.Offset + iter
 
-		return &stream.Tokens[off]
+		return &iterator.Stream.Tokens[off]
 	}
 	return nil
 }
 
 //GetTokenAt get token at offset
-func (stream *BaseTokenStream) GetTokenAt(offset int) *BaseToken {
+func (stream *TokenStream) GetTokenAt(offset int) *BaseToken {
 
 	if offset <= len(stream.Tokens)-1 {
 
@@ -197,8 +204,18 @@ func (stream *BaseTokenStream) GetTokenAt(offset int) *BaseToken {
 	return nil
 }
 
+//GetTokenAt get token at offset
+func (iterator *TokenStreamIterator) GetTokenAt(offset int) *BaseToken {
+
+	if offset <= len(iterator.Stream.Tokens)-1 {
+
+		return &iterator.Stream.Tokens[offset]
+	}
+	return nil
+}
+
 //FindPattern search pattern
-func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound bool, phraseBreak int, isIgnore func(int) bool, fnName func(int) string) []Mark {
+func (iterator *TokenStreamIterator) FindPattern(patterns []Pattern, stopWhenFound bool, phraseBreak int, isIgnore func(int) bool, fnName func(int) string) []Mark {
 
 	marks := []Mark{}
 
@@ -227,7 +244,7 @@ func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound boo
 		for {
 			if iterToken >= patternTokenNum {
 
-				mark := Mark{Type: pattern.Type, Begin: stream.Offset, End: stream.Offset + iter, Ignores: ignores, Children: children}
+				mark := Mark{Type: pattern.Type, Begin: iterator.Offset, End: iterator.Offset + iter, Ignores: ignores, Children: children}
 
 				marks = append(marks, mark)
 
@@ -258,7 +275,7 @@ func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound boo
 
 				children = append(children, childMark)
 
-				childMark.Begin = stream.Offset + iter
+				childMark.Begin = iterator.Offset + iter
 
 				log.Append(fmt.Sprintf("\n\t[%s %s] %s %t", ColorType(patternToken.Type), ColorName(fnName(patternToken.Type)), ColorContent(patternToken.Content), patternToken.IsPhraseUntil))
 			}
@@ -266,7 +283,7 @@ func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound boo
 
 			var moveIter int = 0
 
-			nextToken := stream.GetTokenIter(iter)
+			nextToken := iterator.GetTokenIter(iter)
 
 			if nextToken == nil {
 				break
@@ -276,7 +293,7 @@ func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound boo
 
 				if pattern.IsRemoveGlobalIgnore || patternToken.IsIgnoreInResult {
 
-					ignores = append(ignores, stream.Offset+iter)
+					ignores = append(ignores, iterator.Offset+iter)
 				}
 				iter++
 
@@ -286,7 +303,7 @@ func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound boo
 			}
 			if patternToken.Content != "" {
 
-				var currToken = stream.GetTokenIter(iter)
+				var currToken = iterator.GetTokenIter(iter)
 
 				if currToken == nil || currToken.Content != patternToken.Content {
 
@@ -296,16 +313,16 @@ func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound boo
 				}
 				if patternToken.IsIgnoreInResult {
 
-					ignores = append(ignores, stream.Offset+iter+moveIter)
+					ignores = append(ignores, iterator.Offset+iter+moveIter)
 				}
 
-				childMark.Begin = stream.Offset + iter
+				childMark.Begin = iterator.Offset + iter
 
 				moveIter = 1
 
 			} else if patternToken.Type > 0 {
 
-				var currToken = stream.GetTokenIter(iter)
+				var currToken = iterator.GetTokenIter(iter)
 
 				if currToken == nil || (currToken.Type != phraseBreak && currToken.Type != patternToken.Type) {
 
@@ -316,12 +333,12 @@ func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound boo
 
 				if patternToken.IsIgnoreInResult {
 
-					ignores = append(ignores, stream.Offset+iter+moveIter)
+					ignores = append(ignores, iterator.Offset+iter+moveIter)
 				}
 
 				if currToken.Type == patternToken.Type {
 
-					childMark.Begin = stream.Offset + iter
+					childMark.Begin = iterator.Offset + iter
 				}
 
 				moveIter = 1
@@ -331,7 +348,7 @@ func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound boo
 				isWordFound := false
 
 				for {
-					var currToken = stream.GetTokenIter(iter + moveIter)
+					var currToken = iterator.GetTokenIter(iter + moveIter)
 
 					if currToken == nil {
 
@@ -345,7 +362,7 @@ func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound boo
 
 						if pattern.IsRemoveGlobalIgnore || patternToken.IsIgnoreInResult {
 
-							ignores = append(ignores, stream.Offset+iter+moveIter)
+							ignores = append(ignores, iterator.Offset+iter+moveIter)
 						}
 						moveIter++
 
@@ -355,7 +372,7 @@ func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound boo
 
 						if pattern.IsRemoveGlobalIgnore || patternToken.IsIgnoreInResult {
 
-							ignores = append(ignores, stream.Offset+iter+moveIter)
+							ignores = append(ignores, iterator.Offset+iter+moveIter)
 						}
 						moveIter++
 
@@ -368,7 +385,7 @@ func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound boo
 
 					if patternToken.IsIgnoreInResult {
 
-						ignores = append(ignores, stream.Offset+iter+moveIter)
+						ignores = append(ignores, iterator.Offset+iter+moveIter)
 					}
 
 					moveIter++
@@ -381,7 +398,7 @@ func (stream *BaseTokenStream) FindPattern(patterns []Pattern, stopWhenFound boo
 
 			iter += moveIter
 
-			childMark.End = stream.Offset + iter
+			childMark.End = iterator.Offset + iter
 
 			iterToken++
 			log.Append(fmt.Sprintf("\n"))
@@ -403,7 +420,7 @@ func isIgnoreInMark(iterator int, ignores *[]int) bool {
 }
 
 //GetMaskedToken get token from mask
-func (stream *BaseTokenStream) GetMaskedToken(mark *Mark, ignores *[]int) *BaseToken {
+func (iterator *TokenStreamIterator) GetMaskedToken(mark *Mark, ignores *[]int) *BaseToken {
 
 	if mark.IsTokenStream {
 
@@ -411,23 +428,23 @@ func (stream *BaseTokenStream) GetMaskedToken(mark *Mark, ignores *[]int) *BaseT
 
 		len := mark.End - mark.Begin
 
-		iterator := 0
+		iter := 0
 
 		for {
-			if len <= 0 || stream.EOS() {
+			if len <= 0 || iterator.EOS() {
 
 				break
 			}
-			nextToken := stream.GetTokenAt(mark.Begin + iterator)
+			nextToken := iterator.GetTokenAt(mark.Begin + iter)
 
-			if !isIgnoreInMark(mark.Begin+iterator, ignores) {
+			if !isIgnoreInMark(mark.Begin+iter, ignores) {
 
 				token.Children.AddToken(*nextToken)
 
 			}
 			len--
 
-			iterator++
+			iter++
 		}
 
 		return &token
@@ -436,117 +453,117 @@ func (stream *BaseTokenStream) GetMaskedToken(mark *Mark, ignores *[]int) *BaseT
 
 		len := mark.End - mark.Begin
 
-		iterator := 0
+		iter := 0
 
 		for {
-			if len <= 0 || stream.EOS() {
+			if len <= 0 || iterator.EOS() {
 
 				break
 			}
-			nextToken := stream.GetTokenAt(mark.Begin + iterator)
+			nextToken := iterator.GetTokenAt(mark.Begin + iter)
 
-			if !isIgnoreInMark(mark.Begin+iterator, ignores) {
+			if !isIgnoreInMark(mark.Begin+iter, ignores) {
 
 				return nextToken
 
 			}
 			len--
 
-			iterator++
+			iter++
 		}
 	}
 	return nil
 }
 
 //ReadToken read token
-func (stream *BaseTokenStream) ReadToken() *BaseToken {
+func (iterator *TokenStreamIterator) ReadToken() *BaseToken {
 
-	if stream.Offset <= len(stream.Tokens)-1 {
+	if iterator.Offset <= len(iterator.Stream.Tokens)-1 {
 
-		off := stream.Offset
+		off := iterator.Offset
 
-		stream.Offset++
+		iterator.Offset++
 
-		return &stream.Tokens[off]
+		return &iterator.Stream.Tokens[off]
 	}
 	return nil
 }
 
 //ResetToBegin reset to begin
-func (stream *BaseTokenStream) ResetToBegin() {
+func (iterator *TokenStreamIterator) ResetToBegin() {
 
-	stream.Offset = 0
-
-	for _, token := range stream.Tokens {
-
-		token.Children.ResetToBegin()
-	}
+	iterator.Offset = 0
 }
 
 //EOS is end of stream
-func (stream *BaseTokenStream) EOS() bool {
+func (iterator *TokenStreamIterator) EOS() bool {
 
-	return stream.Offset >= len(stream.Tokens)
+	return iterator.Offset >= len(iterator.Stream.Tokens)
 }
 
 //Length get len of stream
-func (stream *BaseTokenStream) Length() int {
+func (stream *TokenStream) Length() int {
 
 	return len(stream.Tokens)
 }
 
 //ConcatStringContent concat content of tokens
-func (stream *BaseTokenStream) ConcatStringContent() string {
+func (stream *TokenStream) ConcatStringContent() string {
 
-	lastOffset := stream.Offset
-	stream.ResetToBegin()
+	var iterator = stream.Iterator()
+
+	iterator.ResetToBegin()
 
 	content := ""
 
 	for {
-		if stream.EOS() {
+		if iterator.EOS() {
 
 			break
 		}
-		token := stream.ReadToken()
+		token := iterator.ReadToken()
 
 		content += string(token.Content)
 	}
-	stream.Offset = lastOffset
+
 	return content
 }
 
 //ToArray get array of tokens
-func (stream *BaseTokenStream) ToArray() []BaseToken {
+func (stream *TokenStream) ToArray() []BaseToken {
 
 	var rs []BaseToken
-	lastOffset := stream.Offset
-	stream.ResetToBegin()
+
+	var iterator = stream.Iterator()
+
+	iterator.ResetToBegin()
 
 	for {
-		if stream.EOS() {
+		if iterator.EOS() {
 
 			break
 		}
-		token := stream.ReadToken()
+		token := iterator.ReadToken()
 
 		rs = append(rs, *token)
 	}
-	stream.Offset = lastOffset
+
 	return rs
 }
 
 //ReadFirstTokenType read first token of type
-func (stream *BaseTokenStream) ReadFirstTokenType(tokenType int) *BaseToken {
+func (stream *TokenStream) ReadFirstTokenType(tokenType int) *BaseToken {
 
-	stream.ResetToBegin()
+	var iterator = stream.Iterator()
+
+	iterator.ResetToBegin()
 
 	for {
-		if stream.EOS() {
+		if iterator.EOS() {
 
 			break
 		}
-		token := stream.ReadToken()
+		token := iterator.ReadToken()
 
 		if token.Type == tokenType {
 
@@ -558,14 +575,14 @@ func (stream *BaseTokenStream) ReadFirstTokenType(tokenType int) *BaseToken {
 }
 
 //ReadNextTokenType read from current position to next match of token type
-func (stream *BaseTokenStream) ReadNextTokenType(tokenType int) *BaseToken {
+func (iterator *TokenStreamIterator) ReadNextTokenType(tokenType int) *BaseToken {
 
 	for {
-		if stream.EOS() {
+		if iterator.EOS() {
 
 			break
 		}
-		token := stream.ReadToken()
+		token := iterator.ReadToken()
 
 		if token.Type == tokenType {
 

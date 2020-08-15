@@ -1,7 +1,7 @@
 package entity
 
 import (
-	"log"
+	"fmt"
 
 	"newcontinent-team.com/jscraft/tokenize"
 )
@@ -46,10 +46,10 @@ func (patchContext *PatchContext) GetPatch(patchName string) *tokenize.BaseToken
 
 //Debug print debug
 func (patchContext *PatchContext) Debug() {
-	log.Println("debug----patchContext")
+	fmt.Println("debug----patchContext")
 	for name, _ := range patchContext.Patches {
 
-		log.Println("-name-:" + name)
+		fmt.Println("-name-:" + name)
 
 	}
 }
