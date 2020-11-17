@@ -242,13 +242,14 @@ func (builder *JSBuilder) processToken(token *tokenize.BaseToken, outStream *tok
 		outStream.AddToken(*token)
 
 	case js.TokenJSLineComment, js.TokenJSBlockComment:
-
+		outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSPhraseBreak})
 		break
 
 	case js.TokenJSCraftDebug:
 
 		if builder.context.IsDebug {
 
+			outStream.AddToken(tokenize.BaseToken{Type: js.TokenJSPhraseBreak})
 			iterator := token.Children.Iterator()
 			builder.processStream(&iterator, outStream, patchContext)
 		}
