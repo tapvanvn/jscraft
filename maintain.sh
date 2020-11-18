@@ -10,10 +10,20 @@ sure_root_script(){
         touch "$HOME/.newcontinent-team.com/main.sh"
     fi
 
-    bash_profile_content=$(<$HOME/.bash_profile)
+    if [ -f "$HOME/.bash_profile" ]; then
+        profile_content=$(<$HOME/.bash_profile)
 
-    if ! [ "$bash_profile_content" != "${bash_profile_content/source ~\/.newcontinent-team.com\/main.sh/}" ]; then
-        echo "source $HOME/.newcontinent-team.com/main.sh" | tee -a ~/.bash_profile
+        if ! [ "$profile_content" != "${profile_content/source ~\/.newcontinent-team.com\/main.sh/}" ]; then
+            echo "source $HOME/.newcontinent-team.com/main.sh" | tee -a ~/.bash_profile
+        fi
+    fi
+
+    if [ -f "$HOME/.zprofile" ]; then
+        profile_content=$(<$HOME/.zprofile)
+
+        if ! [ "$profile_content" != "${profile_content/source ~\/.newcontinent-team.com\/main.sh/}" ]; then
+            echo "source $HOME/.newcontinent-team.com/main.sh" | tee -a ~/.zprofile
+        fi
     fi
 }
 
