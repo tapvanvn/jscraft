@@ -15,8 +15,8 @@ pushd $DIR/../src
     fi
 popd
 
-#$DIR/.tmp/jscraft $DIR/template $DIR/layout_1 $DIR/.tmp/layout_1
-$DIR/.tmp/jscraft $DIR/template $DIR/layout_2 $DIR/.tmp/layout_2
+$DIR/.tmp/jscraft -d $DIR/template $DIR/layout_1 $DIR/.tmp/layout_1 
+#$DIR/.tmp/jscraft $DIR/template $DIR/layout_2 $DIR/.tmp/layout_2
 #$DIR/.tmp/jscraft $DIR/template $DIR/layout_3 $DIR/.tmp/layout_3
 #$DIR/.tmp/jscraft $DIR/template $DIR/layout_4 $DIR/.tmp/layout_4
 #$DIR/.tmp/jscraft $DIR/template $DIR/layout_5 $DIR/.tmp/layout_5
