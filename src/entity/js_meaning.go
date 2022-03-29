@@ -17,7 +17,7 @@ type JSMeaning struct {
 	Context *CompileContext
 }
 
-var jsOperators []rune = []rune("#%^&*-+/!<>=?:@\"' \\;\r\n\t{}[](),.|")
+var jsOperators []rune = []rune("#%^&*-+/!<>=?:@\"'` \\;\r\n\t{}[](),.|")
 
 //Init a string file
 func (meaning *JSMeaning) Init(content string, context *CompileContext) error {
@@ -108,6 +108,12 @@ func (meaning *JSMeaning) GetNextMeaningToken() *tokenize.BaseToken {
 	} else if lower == "\"" {
 
 		tmpToken := tokenize.BaseToken{Content: "\"", Type: js.TokenJSString}
+		meaning.continueReadString(&tmpToken)
+		return &tmpToken
+
+	} else if lower == "`" {
+
+		tmpToken := tokenize.BaseToken{Content: "`", Type: js.TokenJSString}
 		meaning.continueReadString(&tmpToken)
 		return &tmpToken
 

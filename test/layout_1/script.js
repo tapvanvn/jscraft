@@ -9,6 +9,9 @@ function layout()/* this is block comment */ {
 
     var a = 1;
     var b = 2;
+    var c = `
+        <div>abc</div>
+    `; /** mulltiline string*/
     if(a == b) {
 
         console.log("hello");
